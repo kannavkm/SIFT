@@ -4,7 +4,7 @@ Write a fast no-dependency image stitching program in C++ from scratch (without 
 
 ## Algorithms
 + Features: [SIFT](http://en.wikipedia.org/wiki/Scale-invariant_feature_transform)
-+ Feature Matching: [KNN][https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm] in O(nlogn) time by using a k-d tree to find approximate nearest neighbours.
++ Feature Matching: [KNN](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) in O(nlogn) time by using a k-d tree to find approximate nearest neighbours.
 + Transformation: use [RANSAC](http://en.wikipedia.org/wiki/RANSAC) to estimate a homography or affine transformation.
 + Optimization: focal estimation, [bundle adjustment](https://en.wikipedia.org/wiki/Bundle_adjustment), and some straightening tricks.
 

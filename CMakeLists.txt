@@ -6,9 +6,11 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(OpenCL REQUIRED)
+find_package(OpenCV REQUIRED)
 
-file(GLOB_RECURSE sources "src/*.cpp")
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+file(GLOB_RECURSE sources "src/main.cpp")
 
 add_executable(smai ${sources})
 
-target_link_libraries(smai PNG::PNG JPEG::JPEG OpenCL::OpenCL)
+target_link_libraries(smai PNG::PNG JPEG::JPEG OpenCL::OpenCL ${OpenCV_LIBS})

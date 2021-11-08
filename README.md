@@ -15,7 +15,11 @@ Write a fast no-dependency image stitching program in C++ from scratch (without 
 
 ## setup
 ```bash
-sudo apt install libpng-dev libjpeg-dev ocl-icd-opencl-dev
+sudo apt install \ 
+libpng-dev \ # for png can be skipped for now
+libjpeg-dev \ # for jpeg can be skipped
+ocl-icd-opencl-dev \ # for opencl can be skipped for now
+libopencv-dev
 ```
 
 ## Optional

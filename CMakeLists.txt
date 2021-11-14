@@ -9,7 +9,7 @@ find_package(OpenCL REQUIRED)
 find_package(OpenCV REQUIRED)
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
-file(GLOB_RECURSE sources "src/main.cpp")
+file(GLOB_RECURSE sources "src/*.cpp")
 
 add_executable(smai ${sources})
 

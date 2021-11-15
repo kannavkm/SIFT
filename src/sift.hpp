@@ -7,19 +7,24 @@
 #include <opencv2/ml/ml.hpp>
 #include <vector>
 
-namespace sift { 
+namespace sift
+{
 
-class sift_handler {
-public:
-    sift_handler(cv::Mat&& _base, int32_t _scales);
-private:
-private:
-    std::vector<cv::Mat> img;
-public:
-    int32_t octaves;
-    int32_t scales;
-    cv::Mat base;
-};
+    class sift_handler
+    {
+    public:
+        sift_handler(cv::Mat &&_base, int32_t _scales);
+        cv::Mat get();
+        ~sift_handler();
+    private:
+    private:
+        std::vector<cv::Mat> img;
+
+    public:
+        cv::Mat base;
+        int32_t scales;
+        int32_t octaves;
+    };
 
 }
 

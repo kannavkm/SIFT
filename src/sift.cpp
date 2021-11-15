@@ -1,5 +1,12 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/ml/ml.hpp>
+#include "sift.hpp"
+#include <iostream>
 
+namespace sift {
+
+sift_handler::sift_handler(cv::Mat&& _base, int32_t _scales): 
+                           base(_base), scales(_scales)  {
+    cv::Size s = base.size();
+    c
+}
+
+}

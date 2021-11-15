@@ -5,15 +5,20 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/ml/ml.hpp>
-
-namespace sift {
-
 #include <vector>
 
+namespace sift { 
+
 class sift_handler {
+public:
+    sift_handler(cv::Mat&& _base, int32_t _scales);
+private:
+private:
+    std::vector<cv::Mat> img;
+public:
     int32_t octaves;
     int32_t scales;
-    std::vector<cv::Mat> img;
+    cv::Mat base;
 };
 
 }

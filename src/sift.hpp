@@ -8,12 +8,12 @@
 
 namespace sift {
 
+#include <vector>
+
 class sift_handler {
     int32_t octaves;
-    int32_t scales;          
-
-    vector<cv::Mat> img;
-
+    int32_t scales;
+    std::vector<cv::Mat> img;
 };
 
 }

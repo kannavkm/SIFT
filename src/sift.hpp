@@ -108,17 +108,70 @@ namespace sift {
         }
 
         void find_scale_space_extrema() {
-            for (int i = 0; i < octaves; i++) {
-                for (int j = 0; j < IMAGES; j++) {
-
+            for (int oct = 0; oct < octaves; oct++) {
+                for (int img = 1; img < IMAGES - 1; img++) {
+                    auto &first_image = images[oct][img - 1];
+                    auto &second_image = images[oct][img];
+                    auto &third_image = images[oct][img + 1];
+                    cv::Size size = second_image.size();
+                    for (int i = image_border_width; i < size.width - image_border_width; i++) {
+                        for (int j = image_border_width; i < size.height - image_border_width; i++) {
+                            cv::Rect r(i - 1, j - 1, 3, 3);
+                            std::vector<cv::Mat> pixel_cube{first_image(r), second_image(r), third_image(r)};
+                            auto ans = is_pixel_extremum(pixel_cube);
+                        }
+                    }
                 }
             }
         }
+
+        bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube) {
+
+            bool is_maximum = true, is_minimum = true;
+            for (int k = 0; k < 3; k++) {
+                for (int i = 0; i < 3; i++) {
+                    for (int j = 0; j < 3; j++) {
+                        is_maximum &= pixel_cube[1].at<float>(1, 1) >= pixel_cube[k].at<float>(i, j);
+                        is_minimum &= pixel_cube[1].at<float>(1, 1) <= pixel_cube[k].at<float>(i, j);
+                    }
+                }
+            }
+            return is_minimum | is_maximum;
+        }
+
+        // def Gradient(pixel_array):
+        //     dx = (pixel_array[1, 1, 2] - pixel_array[1, 1, 0]) / 2
+        //     dy = (pixel_array[1, 2, 1] - pixel_array[1, 0, 1]) / 2
+        //     ds = (pixel_array[2, 1, 1] - pixel_array[0, 1, 1]) / 2
+        //     return np.array([dx, dy, ds])
+
+
+        // # Approximate Hessian at center pixel [1, 1, 1] of 3x3x3 array
+        // def Hessian(pixel_array):
+        //     dxx = pixel_array[1, 1, 2] + \
+        //         pixel_array[1, 1, 0] - 2 * pixel_array[1, 1, 1]
+        //     dyy = pixel_array[1, 2, 1] + \
+        //         pixel_array[1, 0, 1] - 2 * pixel_array[1, 1, 1]
+        //     dss = pixel_array[2, 1, 1] + \
+        //         pixel_array[0, 1, 1] - 2 * pixel_array[1, 1, 1]
+        //     dxy = (pixel_array[1, 2, 2] - pixel_array[1, 2, 0] -
+        //         pixel_array[1, 0, 2] + pixel_array[1, 0, 0]) / 4
+        //     dxs = (pixel_array[2, 1, 2] - pixel_array[2, 1, 0] -
+        //         pixel_array[0, 1, 2] + pixel_array[0, 1, 0]) / 4
+        //     dys = (pixel_array[2, 2, 1] - pixel_array[2, 0, 1] -
+        //         pixel_array[0, 2, 1] + pixel_array[0, 0, 1]) / 4
+        //     return np.array([[dxx, dxy, dxs],
+        //                     [dxy, dyy, dys],
+        //                     [dxs, dys, dss]])
+
 
     public:
         cv::Mat base;
         int32_t octaves;
     private:
+        static constexpr size_t image_border_width = 3;
+        static constexpr double contrast_threshhold = 0.04;
+        static constexpr double threshhold = (0.5 * contrast_threshhold / SCALES * 255);
         static constexpr double sigma = 1.6;
         static constexpr double assumed_blur = 0.5;
         static constexpr size_t IMAGES = SCALES + 3;

@@ -39,7 +39,7 @@ namespace sift {
             auto end = std::chrono::steady_clock::now();
             std::chrono::duration<double> for_gauss = after_gauss - start;
             std::chrono::duration<double> for_dog = end - after_gauss;
-            std::cout << "elapsed time: gen gass" << for_gauss.count() << "s\n";
+            std::cout << "elapsed time for gen gauss: " << for_gauss.count() << "s\n";
             std::cout << "elapsed time: " << for_dog.count() << "s\n";
             for (auto &octave: images) {
                 for (auto &img: octave) {
@@ -74,11 +74,11 @@ namespace sift {
         void gen_gaussian_images() {
             // first generate all gaussian kernels and do gaussian
             double k = std::pow(2, 1.0 / SCALES);
-            std::array<double, IMAGES> kernel; 
+            std::array<double, IMAGES> kernel;
             double prev = sigma;
             for (int i = 1; i < (int) IMAGES; i++) {
                 double now = prev * k;
-                kernel[i] = std::sqrt(now*now - prev*prev);
+                kernel[i] = std::sqrt(std::pow(now, 2) - std::pow(prev, 2));
                 prev = now;
             }
             cv::Mat temp = base.clone();
@@ -88,13 +88,13 @@ namespace sift {
                 // the base image for each octave is just interpolated base image
                 octave_images[0] = temp;
                 for (int j = 1; j < (int) IMAGES; j++) {
-                    cv::GaussianBlur(octave_images[j-1], octave_images[j], cv::Size(), kernel[j], kernel[j]);
+                    cv::GaussianBlur(octave_images[j - 1], octave_images[j], cv::Size(), kernel[j], kernel[j]);
                 }
                 size_t baseid = octave_images.size() - 3;
                 cv::resize(octave_images[baseid], temp, cv::Size(), 0.5, 0.5, cv::INTER_NEAREST);
                 images.push_back(std::move(octave_images));
             }
-        }   
+        }
 
         void gen_dog_images() {
             for (auto &octave: images) {
@@ -108,7 +108,11 @@ namespace sift {
         }
 
         void find_scale_space_extrema() {
-            
+            for (int i = 0; i < octaves; i++) {
+                for (int j = 0; j < IMAGES; j++) {
+
+                }
+            }
         }
 
     public:

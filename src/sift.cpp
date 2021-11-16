@@ -114,9 +114,9 @@ namespace sift {
                 for (int i = BORDER; i < (int) (size.height - BORDER); i++) {
                     for (int j = BORDER; j < (int) (size.width - BORDER); j++) {
                         std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
-                        if (is_pixel_extremum(pixel_cube)) { 
+                        if (is_pixel_extremum(pixel_cube)) {
                             std::cout << "#" << i << " " << j << "\n";
-                            localize_extrema(oct,img, i, j);
+                            localize_extrema(oct, img, i, j);
                         }
                     }
                 }
@@ -169,8 +169,7 @@ namespace sift {
         constexpr int attempts = 5;
         cv::Size sz = images[oct][0].size();
         int attempt;
-        for ( attempt = 0; attempt < attempts; attempt++) {
-            
+        for (attempt = 0; attempt < attempts; attempt++) {
             auto pixel_cube = get_pixel_cube(oct, img, i, j);
             // gradient
             cv::Mat grad = get_gradient(pixel_cube);
@@ -186,19 +185,19 @@ namespace sift {
             if (std::abs(G(temp, 0, 0)) < 0.5 && std::abs(G(temp, 1, 0)) < 0.5 && std::abs(G(temp, 2, 0)) < 0.5) {
                 break;
             }
-            j += (int)std::round(G(temp, 0, 0));
-            i += (int)std::round(G(temp,1,0));
-            img += (int)std::round(G(temp,2,0));
-            
-            if (i < BORDER || i >= sz.width - BORDER || j < BORDER || j >= sz.height - BORDER || img < 1 || img > SCALES) {
+            j += (int) std::round(G(temp, 0, 0));
+            i += (int) std::round(G(temp, 1, 0));
+            img += (int) std::round(G(temp, 2, 0));
+
+            if (i < BORDER || i >= sz.width - BORDER || j < BORDER || j >= sz.height - BORDER || img < 1 ||
+                img > SCALES) {
                 return 0;
             }
         }
         if (attempt == 5) {
             return 0;
         }
-        
-
+        return 1;
     }
 
 

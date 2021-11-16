@@ -22,7 +22,7 @@ namespace sift {
 
         static cv::Mat getImg(const cv::Mat &mat);
 
-        std::vector<cv::Mat> get_pixel_cube(size_t oct, size_t img, size_t i, size_t j);
+        std::vector<cv::Mat> get_pixel_cube(int oct, int img, size_t i, size_t j);
 
         void gen_gaussian_images();
 
@@ -36,7 +36,7 @@ namespace sift {
 
         static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
 
-        void localize_extrema(int i, int j, const std::vector<cv::Mat> &pixel_cube);
+        int localize_extrema(int oct, int img, int i, int j);
 
     public:
         cv::Mat base;

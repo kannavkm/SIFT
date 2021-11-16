@@ -98,7 +98,7 @@ namespace sift {
         }
     }
 
-    std::vector<cv::Mat> sift_handler::get_pixel_cube(size_t oct, size_t img, size_t i, size_t j) {
+    std::vector<cv::Mat> sift_handler::get_pixel_cube(int oct, int img, size_t i, size_t j) {
         cv::Mat first_image = images[oct][img - 1];
         cv::Mat second_image = images[oct][img];
         cv::Mat third_image = images[oct][img + 1];
@@ -116,7 +116,7 @@ namespace sift {
                         std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
                         if (is_pixel_extremum(pixel_cube)) { 
                             std::cout << "#" << i << " " << j << "\n";
-                            localize_extrema(i, j, pixel_cube);
+                            localize_extrema(oct,img, i, j);
                         }
                     }
                 }
@@ -165,9 +165,13 @@ namespace sift {
         return hess;
     }
 
-    void sift_handler::localize_extrema(int i, int j, const std::vector<cv::Mat> &pixel_cube) {
+    int sift_handler::localize_extrema(int oct, int img, int i, int j) {
         constexpr int attempts = 5;
-        for (int attempt = 0; attempt < attempts; attempt++) {
+        cv::Size sz = images[oct][0].size();
+        int attempt;
+        for ( attempt = 0; attempt < attempts; attempt++) {
+            
+            auto pixel_cube = get_pixel_cube(oct, img, i, j);
             // gradient
             cv::Mat grad = get_gradient(pixel_cube);
             // hessian
@@ -177,14 +181,24 @@ namespace sift {
             bool res = cv::solve(hess, grad, temp, cv::DECOMP_NORMAL);
             if (!res) continue;
             temp *= -1;
+            std::cout << res << " " << hess << "*" << temp << "=" << grad << std::endl;
+            // only way to do it ok, got convergence
             if (std::abs(G(temp, 0, 0)) < 0.5 && std::abs(G(temp, 1, 0)) < 0.5 && std::abs(G(temp, 2, 0)) < 0.5) {
                 break;
             }
+            j += (int)std::round(G(temp, 0, 0));
+            i += (int)std::round(G(temp,1,0));
+            img += (int)std::round(G(temp,2,0));
             
-
-            std::cout << res << " " << hess << "*" << temp << "=" << grad << std::endl;
-            exit(0);
+            if (i < BORDER || i >= sz.width - BORDER || j < BORDER || j >= sz.height - BORDER || img < 1 || img > SCALES) {
+                return 0;
+            }
         }
+        if (attempt == 5) {
+            return 0;
+        }
+        
+
     }
 
 

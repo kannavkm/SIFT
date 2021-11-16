@@ -22,7 +22,13 @@ namespace sift {
 
         static cv::Mat getImg(const cv::Mat &mat);
 
+        std::vector<cv::Mat> get_pixel_cube(size_t oct, size_t img, size_t i, size_t j);
+
         void gen_gaussian_images();
+
+        cv::Mat get_gradient(const std::vector<cv::Mat> &pixel_cube);
+
+        cv::Mat get_hessian(const std::vector<cv::Mat> &pixel_cube);
 
         void gen_dog_images();
 

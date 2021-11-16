@@ -16,7 +16,7 @@ namespace sift {
 
     sift_handler::sift_handler(cv::Mat &&_base) {
         cv::Mat temp, interpolated, blurred_image;
-        _base.convertTo(temp, CV_32F);
+        _base.convertTo(temp, CV_64F);
         _base.release();
         // compute the number of octaves
         cv::Size sz = temp.size();
@@ -98,18 +98,24 @@ namespace sift {
         }
     }
 
+    std::vector<cv::Mat> sift_handler::get_pixel_cube(size_t oct, size_t img, size_t i, size_t j) {
+        cv::Mat first_image = images[oct][img - 1];
+        cv::Mat second_image = images[oct][img];
+        cv::Mat third_image = images[oct][img + 1];
+        cv::Rect r(i - 1, j - 1, 3, 3);
+        std::vector<cv::Mat> pixel_cube{first_image(r), second_image(r), third_image(r)};
+        return pixel_cube;
+    }
+
     void sift_handler::gen_scale_space_extrema() {
         for (int oct = 0; oct < octaves; oct++) {
             for (int img = 1; img < IMAGES - 2; img++) {
-                cv::Mat first_image = images[oct][img - 1];
-                cv::Mat second_image = images[oct][img];
-                cv::Mat third_image = images[oct][img + 1];
-                cv::Size size = second_image.size();
+                cv::Size size = images[oct][img].size();
                 for (int i = BORDER; i < (int) (size.height - BORDER); i++) {
                     for (int j = BORDER; j < (int) (size.width - BORDER); j++) {
-                        cv::Rect r(i - 1, j - 1, 3, 3);
-                        std::vector<cv::Mat> pixel_cube{first_image(r), second_image(r), third_image(r)};
-                        if (is_pixel_extremum(pixel_cube)) {
+                        std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
+                        if (is_pixel_extremum(pixel_cube)) { 
+                            std::cout << "#" << i << " " << j << "\n";
                             localize_extrema(i, j, pixel_cube);
                         }
                     }
@@ -132,38 +138,55 @@ namespace sift {
         return (is_minimum | is_maximum);
     }
 
+#define G(x, a, b) ((x).at<double>(a, b))
+
+    cv::Mat sift_handler::get_gradient(const std::vector<cv::Mat> &pixel_cube) {
+
+        cv::Mat grad(3, 1, CV_64F);
+        G(grad, 0, 0) = 0.5 * (G(pixel_cube[1], 1, 2) - G(pixel_cube[1], 1, 0));
+        G(grad, 1, 0) = 0.5 * (G(pixel_cube[1], 2, 1) - G(pixel_cube[1], 0, 1));
+        G(grad, 2, 0) = 0.5 * (G(pixel_cube[2], 1, 1) - G(pixel_cube[0], 1, 1));
+        return grad;
+
+    }
+
+    cv::Mat sift_handler::get_hessian(const std::vector<cv::Mat> &pixel_cube) {
+        cv::Mat hess(3, 3, CV_64F);
+        G(hess, 0, 0) = G(pixel_cube[1], 1, 2) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[1], 1, 0);
+        G(hess, 1, 1) = G(pixel_cube[1], 2, 1) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[1], 0, 1);
+        G(hess, 2, 2) = G(pixel_cube[2], 1, 1) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[0], 1, 1);
+
+        G(hess, 0, 1) = G(hess, 1, 0) = 0.25 * (G(pixel_cube[1], 2, 2) - G(pixel_cube[1], 2, 0) -
+                                                G(pixel_cube[1], 0, 2) + G(pixel_cube[1], 0, 0));
+        G(hess, 0, 2) = G(hess, 2, 0) = 0.25 * (G(pixel_cube[2], 1, 2) - G(pixel_cube[2], 1, 0) -
+                                                G(pixel_cube[0], 1, 2) + G(pixel_cube[0], 1, 0));
+        G(hess, 1, 2) = G(hess, 2, 1) = 0.25 * (G(pixel_cube[2], 2, 1) - G(pixel_cube[2], 0, 1) -
+                                                G(pixel_cube[0], 2, 1) + G(pixel_cube[0], 0, 1));
+        return hess;
+    }
+
     void sift_handler::localize_extrema(int i, int j, const std::vector<cv::Mat> &pixel_cube) {
         constexpr int attempts = 5;
         for (int attempt = 0; attempt < attempts; attempt++) {
             // gradient
-            cv::Mat grad(3, 1, CV_64F);
-            grad.at<double>(0, 0) = 0.5 * (pixel_cube[1].at<double>(1, 2) - pixel_cube[1].at<double>(1, 0));
-            grad.at<double>(1, 0) = 0.5 * (pixel_cube[1].at<double>(2, 1) - pixel_cube[1].at<double>(0, 1));
-            grad.at<double>(2, 0) = 0.5 * (pixel_cube[2].at<double>(1, 1) - pixel_cube[0].at<double>(1, 1));
-
+            cv::Mat grad = get_gradient(pixel_cube);
             // hessian
-            cv::Mat hess(3,3,CV_64F);
-            hess.at<double>(0, 0) = pixel_cube[1].at<double>(1, 2) - 2 * pixel_cube[1].at<double>(1, 1) +
-                         pixel_cube[1].at<double>(1, 0);
-            hess.at<double>(1, 1) = pixel_cube[1].at<double>(2, 1) - 2 * pixel_cube[1].at<double>(1, 1) +
-                         pixel_cube[1].at<double>(0, 1);
-            hess.at<double>(2, 2) = pixel_cube[2].at<double>(1, 1) - 2 * pixel_cube[1].at<double>(1, 1) +
-                         pixel_cube[0].at<double>(1, 1);
-
-            hess.at<double>(0, 1) = hess.at<double>(1, 0) = 0.25 * (pixel_cube[1].at<double>(2, 2) - pixel_cube[1].at<double>(2, 0) -
-                                    pixel_cube[1].at<double>(0, 2) + pixel_cube[1].at<double>(0, 0));
-            hess.at<double>(0, 2) = hess.at<double>(2, 0) = 0.25 * (pixel_cube[2].at<double>(1, 2) - pixel_cube[2].at<double>(1, 0) -
-                                    pixel_cube[0].at<double>(1, 2) + pixel_cube[0].at<double>(1, 0));
-            hess.at<double>(1, 2) = hess.at<double>(2, 1) = 0.25 * (pixel_cube[2].at<double>(2, 1) - pixel_cube[2].at<double>(0, 1) - 
-                                    pixel_cube[0].at<double>(2, 1) + pixel_cube[0].at<double>(0, 1));
-            
+            cv::Mat hess = get_hessian(pixel_cube);
             // solve the equation
             cv::Mat temp;
-            bool res = cv::solve(hess, grad, temp, cv::DECOMP_LU);
+            bool res = cv::solve(hess, grad, temp, cv::DECOMP_NORMAL);
+            if (!res) continue;
+            temp *= -1;
+            if (std::abs(G(temp, 0, 0)) < 0.5 && std::abs(G(temp, 1, 0)) < 0.5 && std::abs(G(temp, 2, 0)) < 0.5) {
+                break;
+            }
+            
+
             std::cout << res << " " << hess << "*" << temp << "=" << grad << std::endl;
             exit(0);
         }
     }
+
 
     /*
     def localizeExtremumViaQuadraticFit(i, j, image_index, octave_index, num_intervals, dog_images_in_octave, sigma, contrast_threshold, image_border_width, eigenvalue_ratio=10, num_attempts_until_convergence=5):

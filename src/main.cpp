@@ -19,9 +19,8 @@ int main(int argc, char **argv) {
     namedWindow("Display Image", WINDOW_AUTOSIZE);
     Mat img = ss.get();
     ss.exec();
-//    imshow("Display Image", ss.images[0][0]);
-    // release whatever you get
-    img.release();
+    img.release(); // release whatever you get
+
     // waitKey(0);
     return 0;
 }

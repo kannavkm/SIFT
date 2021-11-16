@@ -30,6 +30,8 @@ namespace sift {
 
         static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
 
+        void localize_extrema(int i, int j, const std::vector<cv::Mat> &pixel_cube);
+
     public:
         cv::Mat base;
         int32_t octaves;

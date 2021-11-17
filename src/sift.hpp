@@ -36,7 +36,7 @@ namespace sift {
 
         static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
 
-        int localize_extrema(int oct, int img, int i, int j);
+        int localize_extrema(int oct, int img, int i, int j, cv::KeyPoint&);
 
     public:
         cv::Mat base;
@@ -49,6 +49,9 @@ namespace sift {
         static constexpr double SIGMA = 1.6;
         static constexpr double assumed_blur = 0.5;
         static constexpr size_t IMAGES = SCALES + 3;
+        static constexpr double EIGEN_VALUE_RATIO = 10.;
+        static constexpr double THRESHOLD_EIGEN_RATIO =
+                ((EIGEN_VALUE_RATIO + 1) * (EIGEN_VALUE_RATIO + 1)) / EIGEN_VALUE_RATIO;
         std::vector<std::vector<cv::Mat>> images;
     };
 

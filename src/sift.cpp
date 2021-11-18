@@ -139,7 +139,6 @@ void sift_handler::gen_scale_space_extrema() {
                     }
                 }
             }
-            
         }
     }
 }
@@ -222,7 +221,7 @@ int sift_handler::localize_extrema(int oct, int img, int i, int j, cv::KeyPoint 
     if (attempt == 5) {
         return -1;
     }
-    
+
     double value = G(pixel_cube[1], 1, 1) + 0.5 * grad.dot(res);
 
     if (std::abs(value) * SCALES >= contrast_threshold) {
@@ -233,7 +232,7 @@ int sift_handler::localize_extrema(int oct, int img, int i, int j, cv::KeyPoint 
             return -1;
         }
         double ratio = (hess_trace * hess_trace) / hess_det;
-        
+
         if (ratio < THRESHOLD_EIGEN_RATIO) {
             double keypt_octave = oct + (1 << 8) * img + (1 << 16) * std::round((G(res, 2, 0) + 0.5) * 255);
             double keypt_pt_x = (j + G(res, 0, 0)) * (1 << oct);

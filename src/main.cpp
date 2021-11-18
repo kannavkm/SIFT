@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <opencv2/opencv.hpp>
+
 #include "sift.hpp"
 
 using namespace cv;
@@ -19,9 +20,8 @@ int main(int argc, char **argv) {
     namedWindow("Display Image", WINDOW_AUTOSIZE);
     Mat img = ss.get();
     ss.exec();
-    img.release(); // release whatever you get
+    img.release();  // release whatever you get
 
     // waitKey(0);
     return 0;
 }
-    

@@ -20,7 +20,7 @@
 namespace sift {
 class sift_handler {
    public:
-    explicit sift_handler(cv::Mat &&_base);
+    explicit sift_handler(const std::string &_name, cv::Mat &&_base);
 
     void exec();
 
@@ -33,10 +33,7 @@ class sift_handler {
        public:
         scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images, int _oct, int _img,
                                      cv::TLSData<std::vector<cv::KeyPoint>> &_tls_data_struct)
-            : images(_images),
-              oct(_oct),
-              img(_img),
-              tls_data_struct(_tls_data_struct){};
+            : images(_images), oct(_oct), img(_img), tls_data_struct(_tls_data_struct){};
 
         void operator()(const cv::Range &range) const override;
 
@@ -50,7 +47,7 @@ class sift_handler {
 
         int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &) const;
 
-        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint>& keypoints) const;
+        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint> &keypoints) const;
 
         const std::vector<std::vector<cv::Mat>> &images;
         int oct;
@@ -71,6 +68,7 @@ class sift_handler {
    public:
     cv::Mat base, onex;
     int32_t octaves;
+    std::string name;
 
    private:
     static constexpr size_t SCALES = 3;

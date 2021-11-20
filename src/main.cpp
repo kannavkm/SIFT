@@ -16,10 +16,14 @@ int main(int argc, char **argv) {
         return -1;
     }
     // move the image to conserve memory no need to release it now
-    std::cout << image.size() << std::endl;
-    sift::sift_handler ss(std::move(image));
-    namedWindow("Display Image", WINDOW_AUTOSIZE);
-    TIMEIT(ss.exec);
+    std::string str(argv[1]);
+    std::size_t found = str.find_last_of("/");
+    auto file =  str.substr(found+1);
+    found = file.find_last_of(".");
+    auto name =  file.substr(0,found);
+    sift::sift_handler ss(name, std::move(image));
+    // namedWindow("Display Image", WINDOW_AUTOSIZE);
+    ss.exec();
 
     // waitKey(0);
     return 0;

@@ -17,7 +17,7 @@ namespace sift {
  * Constructor for the sift handler class
  * blur and double the image to construct the base image
  */
-sift_handler::sift_handler(cv::Mat &&_base) {
+sift_handler::sift_handler(const std::string &_name, cv::Mat &&_base) : name(_name) {
     cv::Mat temp, interpolated, blurred_image;
     _base.convertTo(temp, CV_64F);
     _base.release();
@@ -58,17 +58,16 @@ void sift_handler::exec() {
     cv::Mat out, temp;
     onex.convertTo(temp, CV_8U);
     cv::drawKeypoints(temp, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-//    cv::imwrite("Display-Image-house.png", out);
-//    cv::waitKey(0);
+    cv::imwrite("Display-" + name + ".png", out);
 
-//     for (int oct = 0; oct < images.size(); oct++) {
-//         for (int img = 0; img < images[oct].size(); img++) {
-//             images[oct][img] *= 255;
-//             images[oct][img].convertTo(temp, CV_8U);
-//             std::string name = "house-" + std::to_string(oct) + '-' + std::to_string(img) +  ".png";
-//             cv::imwrite(name, temp);
-//         }
-//     }
+    for (int oct = 0; oct < (int)images.size(); oct++) {
+        for (int img = 0; img < (int)images[oct].size(); img++) {
+            images[oct][img] *= 255;
+            images[oct][img].convertTo(temp, CV_8U);
+            std::string name2 = name + std::to_string(oct) + '-' + std::to_string(img) + ".png";
+            cv::imwrite(name2, temp);
+        }
+    }
 }
 
 /**
@@ -185,7 +184,7 @@ void sift_handler::scale_space_extrema_parallel::operator()(const cv::Range &ran
 
     for (int i = begin; i < end; i++) {
         for (int j = BORDER; j < (int)(size.width - BORDER); j++) {
-            std::vector<cv::KeyPoint>& kpts = tls_data_struct.getRef();
+            std::vector<cv::KeyPoint> &kpts = tls_data_struct.getRef();
             std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
             if (is_pixel_extremum(pixel_cube)) {
                 cv::KeyPoint kpt;
@@ -334,7 +333,8 @@ int sift_handler::scale_space_extrema_parallel::localize_extrema(int oct, int im
  * calculate the orientation of the keypoint
  * A keypoint at specific position might have multiple orientations.
  */
-void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint>& keypoints) const {
+void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt,
+                                                                           std::vector<cv::KeyPoint> &keypoints) const {
     cv::Size sz = images[oct][img].size();
 
     std::vector<double> hist(BINS), smooth(BINS);

@@ -20,11 +20,17 @@ namespace sift {
 
 #define G(x, a, b) ((x).at<double>(a, b))
 #define EPS ((double)1e-15)
+#define EPS2 ((double)1)
 
+/**
+ * Constructor for the sift handler class
+ * blur and double the image to construct the base image
+ */
 sift_handler::sift_handler(cv::Mat &&_base) {
     cv::Mat temp, interpolated, blurred_image;
     _base.convertTo(temp, CV_64F);
     _base.release();
+    onex = temp.clone();
     // compute the number of octaves
     cv::Size sz = temp.size();
     octaves = (size_t)std::round(std::log2((double)std::min(sz.width, sz.height))) - 1;
@@ -35,13 +41,32 @@ sift_handler::sift_handler(cv::Mat &&_base) {
     base = blurred_image;
 }
 
+/**
+ * Destructor for the sift handler class
+ * Clear all the images and keypoints
+ */
+sift_handler::~sift_handler() {
+    base.release();
+    onex.release();
+    for (auto &octave : images) {
+        octave.clear();
+    }
+    images.clear();
+    keypoints.clear();
+}
+
+/**
+ * Function to calculate the keypoints and show the results
+ * calls the necessary functions
+ */
 void sift_handler::exec() {
     TIMEIT(gen_gaussian_images);
     TIMEIT(gen_dog_images);
     TIMEIT(gen_scale_space_extrema);
+    TIMEIT(clean_keypoints);
     cv::Mat out, temp;
-    base.convertTo(temp, CV_8U);
-    cv::drawKeypoints(temp, keypoints, out);
+    onex.convertTo(temp, CV_8U);
+    cv::drawKeypoints(temp, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
     cv::imshow("Display Image", out);
     cv::waitKey(0);
     // for (auto &octave : images) {
@@ -52,18 +77,13 @@ void sift_handler::exec() {
     // }
 }
 
+/**
+ * helper function
+ */
 cv::Mat sift_handler::get() const {
     cv::Mat image;
     base.convertTo(image, CV_8U);
     return image;
-}
-
-sift_handler::~sift_handler() {
-    base.release();
-    for (auto &octave : images) {
-        octave.clear();
-    }
-    images.clear();
 }
 
 cv::Mat sift_handler::getImg(const cv::Mat &mat) {
@@ -72,6 +92,9 @@ cv::Mat sift_handler::getImg(const cv::Mat &mat) {
     return image;
 }
 
+/**
+ * function to generate gaussian image pyramid
+ */
 void sift_handler::gen_gaussian_images() {
     // first generate all gaussian kernels
     double k = std::pow(2, 1.0 / SCALES);
@@ -98,6 +121,9 @@ void sift_handler::gen_gaussian_images() {
     }
 }
 
+/**
+ * subract images to give the difference of gaussian pyramid
+ */
 void sift_handler::gen_dog_images() {
     // dog would result vector of size IMAGES - 1
     for (auto &octave : images) {
@@ -110,6 +136,9 @@ void sift_handler::gen_dog_images() {
     }
 }
 
+/**
+ * helper function to give a 3*3*3 cube at pt i,j. Used in scale space extrema detection
+ */
 std::vector<cv::Mat> sift_handler::get_pixel_cube(int oct, int img, size_t i, size_t j) {
     cv::Mat first_image = images[oct][img - 1];
     cv::Mat second_image = images[oct][img];
@@ -119,9 +148,13 @@ std::vector<cv::Mat> sift_handler::get_pixel_cube(int oct, int img, size_t i, si
     return pixel_cube;
 }
 
+/**
+ * iterate over the image and check whether pixel is extema
+ * if it is then calculate keypoints after localizing extrema
+ */
 void sift_handler::gen_scale_space_extrema() {
     for (int oct = 0; oct < octaves; oct++) {
-        for (int img = 1; img < IMAGES - 2; img++) {
+        for (int img = 1; img < (int)IMAGES - 2; img++) {
             cv::Size size = images[oct][img].size();
             std::cout << size << std::endl;
             // std::vector<cv::KeyPoint> kpts;
@@ -135,7 +168,8 @@ void sift_handler::gen_scale_space_extrema() {
                             continue;
                         }
                         get_keypoint_orientations(oct, image_index, kpt);
-                        // std::cout << "#" << oct << ":" << image_index << "->" << i << " " << j << "\n";
+                        // std::cout << "#" << oct << ":" << image_index << "->" << i << " " << j <<
+                        // "\n";
                     }
                 }
             }
@@ -143,6 +177,9 @@ void sift_handler::gen_scale_space_extrema() {
     }
 }
 
+/**
+ * calculate whether center pixel is extremum in 3*3*3 pixel cube
+ */
 // TODO do this on the gpu
 bool sift_handler::is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube) {
     bool is_maximum = true, is_minimum = true;
@@ -157,6 +194,9 @@ bool sift_handler::is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube) {
     return (is_minimum | is_maximum);
 }
 
+/**
+ * calculate the gradient of the pixel cube in x,y,z directions dD/dx
+ */
 cv::Mat sift_handler::get_gradient(const std::vector<cv::Mat> &pixel_cube) {
     cv::Mat grad(3, 1, CV_64F);
     G(grad, 0, 0) = 0.5 * (G(pixel_cube[1], 1, 2) - G(pixel_cube[1], 1, 0));
@@ -165,27 +205,32 @@ cv::Mat sift_handler::get_gradient(const std::vector<cv::Mat> &pixel_cube) {
     return grad;
 }
 
+/**
+ * @brief
+ *
+ */
 cv::Mat sift_handler::get_hessian(const std::vector<cv::Mat> &pixel_cube) {
     cv::Mat hess(3, 3, CV_64F);
     G(hess, 0, 0) = G(pixel_cube[1], 1, 2) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[1], 1, 0);
     G(hess, 1, 1) = G(pixel_cube[1], 2, 1) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[1], 0, 1);
     G(hess, 2, 2) = G(pixel_cube[2], 1, 1) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[0], 1, 1);
 
-    G(hess, 0, 1) = G(hess, 1, 0) = 0.25 * (G(pixel_cube[1], 2, 2) - G(pixel_cube[1], 2, 0) -
-                                            G(pixel_cube[1], 0, 2) + G(pixel_cube[1], 0, 0));
-    G(hess, 0, 2) = G(hess, 2, 0) = 0.25 * (G(pixel_cube[2], 1, 2) - G(pixel_cube[2], 1, 0) -
-                                            G(pixel_cube[0], 1, 2) + G(pixel_cube[0], 1, 0));
-    G(hess, 1, 2) = G(hess, 2, 1) = 0.25 * (G(pixel_cube[2], 2, 1) - G(pixel_cube[2], 0, 1) -
-                                            G(pixel_cube[0], 2, 1) + G(pixel_cube[0], 0, 1));
+    G(hess, 0, 1) = G(hess, 1, 0) =
+        0.25 * (G(pixel_cube[1], 2, 2) - G(pixel_cube[1], 2, 0) - G(pixel_cube[1], 0, 2) + G(pixel_cube[1], 0, 0));
+    G(hess, 0, 2) = G(hess, 2, 0) =
+        0.25 * (G(pixel_cube[2], 1, 2) - G(pixel_cube[2], 1, 0) - G(pixel_cube[0], 1, 2) + G(pixel_cube[0], 1, 0));
+    G(hess, 1, 2) = G(hess, 2, 1) =
+        0.25 * (G(pixel_cube[2], 2, 1) - G(pixel_cube[2], 0, 1) - G(pixel_cube[0], 2, 1) + G(pixel_cube[0], 0, 1));
     return hess;
 }
 
-int sift_handler::localize_extrema(int oct, int img, int i, int j, cv::KeyPoint &kpt) {
+int sift_handler::localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &kpt) {
     constexpr int attempts = 5;
     cv::Size sz = images[oct][0].size();
     int attempt;
     std::vector<cv::Mat> pixel_cube;
     cv::Mat grad, hess, res;
+    // try to localize the extrema withing these attempts
     for (attempt = 0; attempt < attempts; attempt++) {
         pixel_cube.clear();
         pixel_cube = get_pixel_cube(oct, img, i, j);
@@ -217,13 +262,14 @@ int sift_handler::localize_extrema(int oct, int img, int i, int j, cv::KeyPoint 
         hess.release();
         res.release();
     }
-    // nahi mila
+    // didn't find any convergence point
     if (attempt == 5) {
         return -1;
     }
 
     double value = G(pixel_cube[1], 1, 1) + 0.5 * grad.dot(res);
 
+    // thresholding using the value given in the paper
     if (std::abs(value) * SCALES >= contrast_threshold) {
         cv::Mat hess2 = hess(cv::Rect(0, 0, 2, 2));
         double hess_trace = cv::trace(hess2)[0];
@@ -233,24 +279,27 @@ int sift_handler::localize_extrema(int oct, int img, int i, int j, cv::KeyPoint 
         }
         double ratio = (hess_trace * hess_trace) / hess_det;
 
+        // Below code is reponsible for eliminating edge responses using hessian trace and
+        // determinant
         if (ratio < THRESHOLD_EIGEN_RATIO) {
             double keypt_octave = oct + (1 << 8) * img + (1 << 16) * std::round((G(res, 2, 0) + 0.5) * 255);
             double keypt_pt_x = (j + G(res, 0, 0)) * (1 << oct);
             double keypt_pt_y = (i + G(res, 1, 0)) * (1 << oct);
             double keypt_size = SIGMA * (std::pow(2, img + G(res, 2, 0)) / (1.0 * SCALES)) * (1 << (oct + 1));
             double keypt_response = std::abs(value);
-            kpt = cv::KeyPoint(
-                keypt_pt_x,
-                keypt_pt_y,
-                keypt_size,
-                -1,  // angle
-                keypt_response,
-                keypt_octave);
+            kpt = cv::KeyPoint(keypt_pt_x, keypt_pt_y, keypt_size,
+                               -1,  // angle
+                               keypt_response, keypt_octave);
             return img;
         }
     }
     return -1;
 }
+
+/**
+ * calculate the orientation of the keypoint
+ * A keypoint at specific position might have multiple orientations.
+ */
 void sift_handler::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) {
     cv::Size sz = images[oct][img].size();
 
@@ -263,12 +312,16 @@ void sift_handler::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt
     double radius = scale * RADIUS_FACTOR;
     double weight_factor = -0.5 / (scale * scale);
 
+
+    // Creating a histogram of orientations
     for (int i = -radius; i <= radius; i++) {
         if (base_y + i > 0 and base_y + i < sz.height - 1) {
             for (int j = -radius; j <= radius; j++) {
                 if (base_x + j > 0 and base_x + j < sz.width - 1) {
-                    double dx = G(images[oct][img], base_y + i, base_x + j + 1) - G(images[oct][img], base_y + i, base_x + j - 1);
-                    double dy = G(images[oct][img], base_y + i - 1, base_x + j) - G(images[oct][img], base_y + i + 1, base_x + j);
+                    double dx = G(images[oct][img], base_y + i, base_x + j + 1) -
+                                G(images[oct][img], base_y + i, base_x + j - 1);
+                    double dy = G(images[oct][img], base_y + i - 1, base_x + j) -
+                                G(images[oct][img], base_y + i + 1, base_x + j);
                     double mag = std::sqrt(dx * dx + dy * dy);
                     double orientation = (std::atan(dy / dx) * 180) / PI;
                     size_t index = ((size_t)std::round((orientation * BINS) / 360)) % BINS;
@@ -277,14 +330,19 @@ void sift_handler::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt
             }
         }
     }
-    auto circ = [&](int i) {
-        return (i + BINS) % BINS;
-    };
-    for (int i = 0; i < BINS; i++) {
-        smooth[i] = ((6 * hist[i]) + (4 * (hist[circ(i - 1)] + hist[circ(i + 1)])) + (hist[circ(i - 2)] + hist[circ(i + 2)])) / 16.;
+
+    auto circ = [&](int i) { return (i + BINS) % BINS; };
+
+    // Smoothing out the histogram
+    for (int i = 0; i < (int)BINS; i++) {
+        smooth[i] =
+            ((6 * hist[i]) + (4 * (hist[circ(i - 1)] + hist[circ(i + 1)])) + (hist[circ(i - 2)] + hist[circ(i + 2)])) /
+            16.;
     }
+
+    // select the Gaussian smoothed image
     double max_orientation = *std::max_element(smooth.begin(), smooth.end());
-    for (int i = 0; i < BINS; i++) {
+    for (int i = 0; i < (int)BINS; i++) {
         double l = smooth[circ(i - 1)], r = smooth[circ(i + 1)];
         if (smooth[i] > l && smooth[i] > r) {
             double peak = smooth[i];
@@ -294,16 +352,42 @@ void sift_handler::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt
                 if (std::abs(360 - orientation) < EPS) {
                     orientation = 0;
                 }
-                cv::KeyPoint new_keypoint = cv::KeyPoint(
-                    kpt.pt,
-                    kpt.size,
-                    orientation,  // angle
-                    kpt.response,
-                    kpt.octave);
+                cv::KeyPoint new_keypoint = cv::KeyPoint(kpt.pt, kpt.size, orientation,  kpt.response, kpt.octave);
                 keypoints.push_back(new_keypoint);
             }
         }
     }
+}
+
+/**
+ * @brief 
+ * 
+ * 
+ * @return * remove 
+ */
+void sift_handler::clean_keypoints() {
+    std::cout << keypoints.size() << std::endl;
+    std::sort(keypoints.begin(), keypoints.end(), [&](auto kp1, auto kp2) {
+        if (kp1.pt.x != kp2.pt.x) return kp1.pt.x < kp2.pt.x;
+        if (kp1.pt.y != kp2.pt.y) return kp1.pt.y < kp2.pt.y;
+        if (kp1.size != kp2.size) return kp1.size > kp2.size;
+        if (kp1.angle != kp2.angle) return kp1.angle < kp2.angle;
+        if (kp1.response != kp2.response) return kp1.response > kp2.response;
+        if (kp1.octave != kp2.octave) return kp1.octave > kp2.octave;
+        if (kp1.class_id != kp2.class_id) return kp1.class_id > kp2.class_id;
+        return false;
+    });
+    auto last = std::unique(keypoints.begin(), keypoints.end(), [&](auto I, auto J) {
+        return !(std::abs(I.pt.x - J.pt.x) > EPS2 or std::abs(I.pt.x - J.pt.x) > EPS2 or
+                 std::abs(I.size - J.size) > EPS2 or std::abs(I.angle - J.angle) > EPS2);
+    });
+    keypoints.erase(last, keypoints.end());
+    for (auto &kpt : keypoints) {
+        kpt.pt *= 0.5;
+        kpt.size *= 0.5;
+        kpt.octave = (kpt.octave & ~255) | ((kpt.octave - 1) & 255);
+    }
+    std::cout << keypoints.size() << std::endl;
 }
 
 }  // namespace sift

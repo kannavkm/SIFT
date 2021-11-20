@@ -36,12 +36,14 @@ class sift_handler {
 
     static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
 
-    int localize_extrema(int oct, int img, int i, int j, cv::KeyPoint &);
+    int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &);
 
     void get_keypoint_orientations(int oct, int img, cv::KeyPoint& kpt);
 
+    void clean_keypoints();
+
    public:
-    cv::Mat base;
+    cv::Mat base, onex;
     int32_t octaves;
 
    private:

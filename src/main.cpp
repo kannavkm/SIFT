@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
         printf("usage: DisplayImage.out <Image_Path>\n");
         return -1;
     }
-    Mat image = imread(argv[1], IMREAD_GRAYSCALE);
+    Mat image = imread(argv[1], cv::IMREAD_GRAYSCALE);
     if (!image.data) {
         printf("No image data \n");
         return -1;

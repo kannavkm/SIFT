@@ -27,8 +27,7 @@ class sift_handler {
             : images(_images),
               oct(_oct),
               img(_img),
-              tls_data_struct(_tls_data_struct),
-              keypoints(tls_data_struct.getRef()){};
+              tls_data_struct(_tls_data_struct){};
 
         void operator()(const cv::Range &range) const override;
 
@@ -42,13 +41,12 @@ class sift_handler {
 
         int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &) const;
 
-        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) const;
+        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint>& keypoints) const;
 
         const std::vector<std::vector<cv::Mat>> &images;
         int oct;
         int img;
         cv::TLSData<std::vector<cv::KeyPoint>> &tls_data_struct;
-        std::vector<cv::KeyPoint> &keypoints;
     };
 
     static cv::Mat getImg(const cv::Mat &mat);

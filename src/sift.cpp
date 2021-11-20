@@ -191,6 +191,7 @@ void sift_handler::scale_space_extrema_parallel::operator()(const cv::Range &ran
 
     for (int i = begin; i < end; i++) {
         for (int j = BORDER; j < (int)(size.width - BORDER); j++) {
+            std::vector<cv::KeyPoint>& kpts = tls_data_struct.getRef();
             std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
             if (is_pixel_extremum(pixel_cube)) {
                 cv::KeyPoint kpt;
@@ -198,7 +199,7 @@ void sift_handler::scale_space_extrema_parallel::operator()(const cv::Range &ran
                 if (image_index < 0) {
                     continue;
                 }
-                get_keypoint_orientations(oct, image_index, kpt);
+                get_keypoint_orientations(oct, image_index, kpt, kpts);
             }
         }
     }
@@ -339,7 +340,7 @@ int sift_handler::scale_space_extrema_parallel::localize_extrema(int oct, int im
  * calculate the orientation of the keypoint
  * A keypoint at specific position might have multiple orientations.
  */
-void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) const {
+void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint>& keypoints) const {
     cv::Size sz = images[oct][img].size();
 
     std::vector<double> hist(BINS), smooth(BINS);

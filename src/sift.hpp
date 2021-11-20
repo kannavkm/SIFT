@@ -2,6 +2,7 @@
 #define SIFT_H
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/utils/tls.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -22,8 +23,12 @@ class sift_handler {
     class scale_space_extrema_parallel : public cv::ParallelLoopBody {
        public:
         scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images, int _oct, int _img,
-                                     std::vector<cv::KeyPoint> &_keypoints)
-            : images(_images), oct(_oct), img(_img), keypoints(_keypoints){};
+                                     cv::TLSData<std::vector<cv::KeyPoint>> &_tls_data_struct)
+            : images(_images),
+              oct(_oct),
+              img(_img),
+              tls_data_struct(_tls_data_struct),
+              keypoints(tls_data_struct.getRef()){};
 
         void operator()(const cv::Range &range) const override;
 
@@ -39,9 +44,10 @@ class sift_handler {
 
         void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) const;
 
-        std::vector<std::vector<cv::Mat>> &images;
+        const std::vector<std::vector<cv::Mat>> &images;
         int oct;
         int img;
+        cv::TLSData<std::vector<cv::KeyPoint>> &tls_data_struct;
         std::vector<cv::KeyPoint> &keypoints;
     };
 

@@ -141,12 +141,18 @@ void sift_handler::gen_dog_images() {
  * if it is then calculate keypoints after localizing extrema
  */
 void sift_handler::gen_scale_space_extrema() {
+    cv::TLSDataAccumulator<std::vector<cv::KeyPoint> > tls_kpts_struct;
     for (int oct = 0; oct < octaves; oct++) {
         for (int img = 1; img < (int)IMAGES - 2; img++) {
             cv::Size size = images[oct][img].size();
             cv::parallel_for_(cv::Range(BORDER, size.height - BORDER),
-                              scale_space_extrema_parallel(images, oct, img, keypoints));
+                              scale_space_extrema_parallel(images, oct, img, tls_kpts_struct));
         }
+    }
+    std::vector<std::vector<cv::KeyPoint> *> kpt_vecs;
+    tls_kpts_struct.gather(kpt_vecs);
+    for (size_t i = 0; i < kpt_vecs.size(); ++i) {
+        keypoints.insert(keypoints.end(), kpt_vecs[i]->begin(), kpt_vecs[i]->end());
     }
 }
 

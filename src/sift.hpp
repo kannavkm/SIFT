@@ -8,6 +8,15 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
 
+#define TIMEIT(f)                                                                 \
+    {                                                                             \
+        auto start = std::chrono::steady_clock::now();                            \
+        f();                                                                      \
+        auto end = std::chrono::steady_clock::now();                              \
+        std::chrono::duration<double> duration = end - start;                     \
+        std::cout << "elapsed time: " << #f << ": " << duration.count() << "s\n"; \
+    }
+
 namespace sift {
 class sift_handler {
    public:

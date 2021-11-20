@@ -16,9 +16,10 @@ int main(int argc, char **argv) {
         return -1;
     }
     // move the image to conserve memory no need to release it now
+    std::cout << image.size() << std::endl;
     sift::sift_handler ss(std::move(image));
     namedWindow("Display Image", WINDOW_AUTOSIZE);
-    ss.exec();
+    TIMEIT(ss.exec);
 
     // waitKey(0);
     return 0;

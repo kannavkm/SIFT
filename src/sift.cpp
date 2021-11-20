@@ -9,15 +9,6 @@
 
 namespace sift {
 
-#define TIMEIT(f)                                                                 \
-    {                                                                             \
-        auto start = std::chrono::steady_clock::now();                            \
-        f();                                                                      \
-        auto end = std::chrono::steady_clock::now();                              \
-        std::chrono::duration<double> duration = end - start;                     \
-        std::cout << "elapsed time: " << #f << ": " << duration.count() << "s\n"; \
-    }
-
 #define G(x, a, b) ((x).at<double>(a, b))
 #define EPS ((double)1e-15)
 #define EPS2 ((double)1)
@@ -67,17 +58,17 @@ void sift_handler::exec() {
     cv::Mat out, temp;
     onex.convertTo(temp, CV_8U);
     cv::drawKeypoints(temp, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    cv::imwrite("Display-Image-house.png", out);
-    cv::waitKey(0);
+//    cv::imwrite("Display-Image-house.png", out);
+//    cv::waitKey(0);
 
-     for (int oct = 0; oct < images.size(); oct++) {
-         for (int img = 0; img < images[oct].size(); img++) {
-             images[oct][img] *= 255;
-             images[oct][img].convertTo(temp, CV_8U);
-             std::string name = "house-" + std::to_string(oct) + '-' + std::to_string(img) +  ".png";
-             cv::imwrite(name, temp);
-         }
-     }
+//     for (int oct = 0; oct < images.size(); oct++) {
+//         for (int img = 0; img < images[oct].size(); img++) {
+//             images[oct][img] *= 255;
+//             images[oct][img].convertTo(temp, CV_8U);
+//             std::string name = "house-" + std::to_string(oct) + '-' + std::to_string(img) +  ".png";
+//             cv::imwrite(name, temp);
+//         }
+//     }
 }
 
 /**

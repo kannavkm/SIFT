@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     sift::sift_handler ss(std::move(image));
     namedWindow("Display Image", WINDOW_AUTOSIZE);
     ss.exec();
-    
+
     // waitKey(0);
     return 0;
 }

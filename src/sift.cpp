@@ -178,7 +178,6 @@ void sift_handler::clean_keypoints() {
     std::cout << keypoints.size() << std::endl;
 }
 
-
 void sift_handler::scale_space_extrema_parallel::operator()(const cv::Range &range) const {
     cv::Size size = images[oct][img].size();
     const int begin = range.start;
@@ -391,7 +390,5 @@ void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int o
         }
     }
 }
-
-
 
 }  // namespace sift

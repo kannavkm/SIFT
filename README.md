@@ -21,6 +21,16 @@ libjpeg-dev \ # for jpeg can be skipped
 ocl-icd-opencl-dev \ # for opencl can be skipped for now
 libopencv-dev
 ```
+## How to run
+you will need `cmake` to build
+```bash
+mkdir build
+cd build
+cmake ..
+make
+./smai ../res/Lenna.jpg
+./smai ../res/new-england-vermont-colonial-house.jpg
+```
 
 ## Optional
 + Do matrix multiplication on GPU(CUDA || OpenCL || OpenMP)

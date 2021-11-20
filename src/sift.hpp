@@ -25,9 +25,9 @@ class sift_handler {
                                      std::vector<cv::KeyPoint> &_keypoints)
             : images(_images), oct(_oct), img(_img), keypoints(_keypoints){};
 
-        void operator()(const cv::Range &range) const  override;
+        void operator()(const cv::Range &range) const override;
 
-        std::vector<cv::Mat> get_pixel_cube(int oct, int img, size_t i, size_t j) const ;
+        std::vector<cv::Mat> get_pixel_cube(int oct, int img, size_t i, size_t j) const;
 
         static cv::Mat get_gradient(const std::vector<cv::Mat> &pixel_cube);
 
@@ -35,9 +35,9 @@ class sift_handler {
 
         static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
 
-        int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &) const ;
+        int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &) const;
 
-        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) const ;
+        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) const;
 
         std::vector<std::vector<cv::Mat>> &images;
         int oct;

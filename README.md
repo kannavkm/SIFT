@@ -1,7 +1,7 @@
 # SMAI project
 
 ## Objective
-Write a fast no-dependency image stitching program in C++ from scratch (without any vision libraries)
+Write a fast no-dependency image stitching program in C++ from scratch.
 
 ## Algorithms
 + Features: [SIFT](http://en.wikipedia.org/wiki/Scale-invariant_feature_transform)

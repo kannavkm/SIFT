@@ -5,7 +5,6 @@
 #include <opencv2/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-// #include <opencv2/ml/ml.hpp>
 #include <vector>
 
 namespace sift {
@@ -20,25 +19,39 @@ class sift_handler {
     ~sift_handler();
 
    private:
+    class scale_space_extrema_parallel : public cv::ParallelLoopBody {
+       public:
+        scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images, int _oct, int _img,
+                                     std::vector<cv::KeyPoint> &_keypoints)
+            : images(_images), oct(_oct), img(_img), keypoints(_keypoints){};
+
+        void operator()(const cv::Range &range) const  override;
+
+        std::vector<cv::Mat> get_pixel_cube(int oct, int img, size_t i, size_t j) const ;
+
+        static cv::Mat get_gradient(const std::vector<cv::Mat> &pixel_cube);
+
+        static cv::Mat get_hessian(const std::vector<cv::Mat> &pixel_cube);
+
+        static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
+
+        int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &) const ;
+
+        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) const ;
+
+        std::vector<std::vector<cv::Mat>> &images;
+        int oct;
+        int img;
+        std::vector<cv::KeyPoint> &keypoints;
+    };
+
     static cv::Mat getImg(const cv::Mat &mat);
 
-    std::vector<cv::Mat> get_pixel_cube(int oct, int img, size_t i, size_t j);
-
     void gen_gaussian_images();
-
-    static cv::Mat get_gradient(const std::vector<cv::Mat> &pixel_cube);
-
-    static cv::Mat get_hessian(const std::vector<cv::Mat> &pixel_cube);
 
     void gen_dog_images();
 
     void gen_scale_space_extrema();
-
-    static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
-
-    int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &);
-
-    void get_keypoint_orientations(int oct, int img, cv::KeyPoint& kpt);
 
     void clean_keypoints();
 
@@ -55,7 +68,8 @@ class sift_handler {
     static constexpr double assumed_blur = 0.5;
     static constexpr size_t IMAGES = SCALES + 3;
     static constexpr double EIGEN_VALUE_RATIO = 10.;
-    static constexpr double THRESHOLD_EIGEN_RATIO = ((EIGEN_VALUE_RATIO + 1) * (EIGEN_VALUE_RATIO + 1)) / EIGEN_VALUE_RATIO;
+    static constexpr double THRESHOLD_EIGEN_RATIO =
+        ((EIGEN_VALUE_RATIO + 1) * (EIGEN_VALUE_RATIO + 1)) / EIGEN_VALUE_RATIO;
     static constexpr size_t BINS = 36;
     static constexpr double PEAK_RATIO = .8;
     static constexpr double SCALE_FACTOR = 1.5;

@@ -18,10 +18,8 @@ int main(int argc, char **argv) {
     // move the image to conserve memory no need to release it now
     sift::sift_handler ss(std::move(image));
     namedWindow("Display Image", WINDOW_AUTOSIZE);
-    Mat img = ss.get();
     ss.exec();
-    img.release();  // release whatever you get
-
+    
     // waitKey(0);
     return 0;
 }

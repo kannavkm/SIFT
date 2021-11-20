@@ -137,9 +137,73 @@ void sift_handler::gen_dog_images() {
 }
 
 /**
+ * iterate over the image and check whether pixel is extema
+ * if it is then calculate keypoints after localizing extrema
+ */
+void sift_handler::gen_scale_space_extrema() {
+    for (int oct = 0; oct < octaves; oct++) {
+        for (int img = 1; img < (int)IMAGES - 2; img++) {
+            cv::Size size = images[oct][img].size();
+            cv::parallel_for_(cv::Range(BORDER, size.height - BORDER),
+                              scale_space_extrema_parallel(images, oct, img, keypoints));
+        }
+    }
+}
+
+/**
+ * remove repeating keypoints and scale back to size of original image
+ */
+void sift_handler::clean_keypoints() {
+    // std::cout << keypoints.size() << std::endl;
+    std::sort(keypoints.begin(), keypoints.end(), [&](auto kp1, auto kp2) {
+        if (kp1.pt.x != kp2.pt.x) return kp1.pt.x < kp2.pt.x;
+        if (kp1.pt.y != kp2.pt.y) return kp1.pt.y < kp2.pt.y;
+        if (kp1.size != kp2.size) return kp1.size > kp2.size;
+        if (kp1.angle != kp2.angle) return kp1.angle < kp2.angle;
+        if (kp1.response != kp2.response) return kp1.response > kp2.response;
+        if (kp1.octave != kp2.octave) return kp1.octave > kp2.octave;
+        if (kp1.class_id != kp2.class_id) return kp1.class_id > kp2.class_id;
+        return false;
+    });
+    auto last = std::unique(keypoints.begin(), keypoints.end(), [&](auto I, auto J) {
+        return !(std::abs(I.pt.x - J.pt.x) > EPS2 or std::abs(I.pt.x - J.pt.x) > EPS2 or
+                 std::abs(I.size - J.size) > EPS2 or std::abs(I.angle - J.angle) > EPS2);
+    });
+    keypoints.erase(last, keypoints.end());
+    for (auto &kpt : keypoints) {
+        kpt.pt *= 0.5;
+        kpt.size *= 0.5;
+        kpt.octave = (kpt.octave & ~255) | ((kpt.octave - 1) & 255);
+    }
+    std::cout << keypoints.size() << std::endl;
+}
+
+
+void sift_handler::scale_space_extrema_parallel::operator()(const cv::Range &range) const {
+    cv::Size size = images[oct][img].size();
+    const int begin = range.start;
+    const int end = range.end;
+
+    for (int i = begin; i < end; i++) {
+        for (int j = BORDER; j < (int)(size.width - BORDER); j++) {
+            std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
+            if (is_pixel_extremum(pixel_cube)) {
+                cv::KeyPoint kpt;
+                auto image_index = localize_extrema(oct, img, i, j, kpt);
+                if (image_index < 0) {
+                    continue;
+                }
+                get_keypoint_orientations(oct, image_index, kpt);
+            }
+        }
+    }
+}
+
+/**
  * helper function to give a 3*3*3 cube at pt i,j. Used in scale space extrema detection
  */
-std::vector<cv::Mat> sift_handler::get_pixel_cube(int oct, int img, size_t i, size_t j) {
+std::vector<cv::Mat> sift_handler::scale_space_extrema_parallel::get_pixel_cube(int oct, int img, size_t i,
+                                                                                size_t j) const {
     cv::Mat first_image = images[oct][img - 1];
     cv::Mat second_image = images[oct][img];
     cv::Mat third_image = images[oct][img + 1];
@@ -149,39 +213,9 @@ std::vector<cv::Mat> sift_handler::get_pixel_cube(int oct, int img, size_t i, si
 }
 
 /**
- * iterate over the image and check whether pixel is extema
- * if it is then calculate keypoints after localizing extrema
- */
-void sift_handler::gen_scale_space_extrema() {
-    for (int oct = 0; oct < octaves; oct++) {
-        for (int img = 1; img < (int)IMAGES - 2; img++) {
-            cv::Size size = images[oct][img].size();
-            std::cout << size << std::endl;
-            // std::vector<cv::KeyPoint> kpts;
-            for (int i = BORDER; i < (int)(size.height - BORDER); i++) {
-                for (int j = BORDER; j < (int)(size.width - BORDER); j++) {
-                    std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
-                    if (is_pixel_extremum(pixel_cube)) {
-                        cv::KeyPoint kpt;
-                        auto image_index = localize_extrema(oct, img, i, j, kpt);
-                        if (image_index < 0) {
-                            continue;
-                        }
-                        get_keypoint_orientations(oct, image_index, kpt);
-                        // std::cout << "#" << oct << ":" << image_index << "->" << i << " " << j <<
-                        // "\n";
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
  * calculate whether center pixel is extremum in 3*3*3 pixel cube
  */
-// TODO do this on the gpu
-bool sift_handler::is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube) {
+bool sift_handler::scale_space_extrema_parallel::is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube) {
     bool is_maximum = true, is_minimum = true;
     for (int k = 0; k < 3; k++) {
         for (int i = 0; i < 3; i++) {
@@ -197,7 +231,7 @@ bool sift_handler::is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube) {
 /**
  * calculate the gradient of the pixel cube in x,y,z directions dD/dx
  */
-cv::Mat sift_handler::get_gradient(const std::vector<cv::Mat> &pixel_cube) {
+cv::Mat sift_handler::scale_space_extrema_parallel::get_gradient(const std::vector<cv::Mat> &pixel_cube) {
     cv::Mat grad(3, 1, CV_64F);
     G(grad, 0, 0) = 0.5 * (G(pixel_cube[1], 1, 2) - G(pixel_cube[1], 1, 0));
     G(grad, 1, 0) = 0.5 * (G(pixel_cube[1], 2, 1) - G(pixel_cube[1], 0, 1));
@@ -206,10 +240,9 @@ cv::Mat sift_handler::get_gradient(const std::vector<cv::Mat> &pixel_cube) {
 }
 
 /**
- * @brief
- *
+ * calculate the hessina of the pixel cube dD^2/d^2x
  */
-cv::Mat sift_handler::get_hessian(const std::vector<cv::Mat> &pixel_cube) {
+cv::Mat sift_handler::scale_space_extrema_parallel::get_hessian(const std::vector<cv::Mat> &pixel_cube) {
     cv::Mat hess(3, 3, CV_64F);
     G(hess, 0, 0) = G(pixel_cube[1], 1, 2) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[1], 1, 0);
     G(hess, 1, 1) = G(pixel_cube[1], 2, 1) - 2 * G(pixel_cube[1], 1, 1) + G(pixel_cube[1], 0, 1);
@@ -224,7 +257,8 @@ cv::Mat sift_handler::get_hessian(const std::vector<cv::Mat> &pixel_cube) {
     return hess;
 }
 
-int sift_handler::localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &kpt) {
+int sift_handler::scale_space_extrema_parallel::localize_extrema(int oct, int img, size_t i, size_t j,
+                                                                 cv::KeyPoint &kpt) const {
     constexpr int attempts = 5;
     cv::Size sz = images[oct][0].size();
     int attempt;
@@ -300,7 +334,7 @@ int sift_handler::localize_extrema(int oct, int img, size_t i, size_t j, cv::Key
  * calculate the orientation of the keypoint
  * A keypoint at specific position might have multiple orientations.
  */
-void sift_handler::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) {
+void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt) const {
     cv::Size sz = images[oct][img].size();
 
     std::vector<double> hist(BINS), smooth(BINS);
@@ -311,7 +345,6 @@ void sift_handler::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt
     double scale = SCALE_FACTOR * base_size;
     double radius = scale * RADIUS_FACTOR;
     double weight_factor = -0.5 / (scale * scale);
-
 
     // Creating a histogram of orientations
     for (int i = -radius; i <= radius; i++) {
@@ -352,42 +385,13 @@ void sift_handler::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt
                 if (std::abs(360 - orientation) < EPS) {
                     orientation = 0;
                 }
-                cv::KeyPoint new_keypoint = cv::KeyPoint(kpt.pt, kpt.size, orientation,  kpt.response, kpt.octave);
+                cv::KeyPoint new_keypoint = cv::KeyPoint(kpt.pt, kpt.size, orientation, kpt.response, kpt.octave);
                 keypoints.push_back(new_keypoint);
             }
         }
     }
 }
 
-/**
- * @brief 
- * 
- * 
- * @return * remove 
- */
-void sift_handler::clean_keypoints() {
-    std::cout << keypoints.size() << std::endl;
-    std::sort(keypoints.begin(), keypoints.end(), [&](auto kp1, auto kp2) {
-        if (kp1.pt.x != kp2.pt.x) return kp1.pt.x < kp2.pt.x;
-        if (kp1.pt.y != kp2.pt.y) return kp1.pt.y < kp2.pt.y;
-        if (kp1.size != kp2.size) return kp1.size > kp2.size;
-        if (kp1.angle != kp2.angle) return kp1.angle < kp2.angle;
-        if (kp1.response != kp2.response) return kp1.response > kp2.response;
-        if (kp1.octave != kp2.octave) return kp1.octave > kp2.octave;
-        if (kp1.class_id != kp2.class_id) return kp1.class_id > kp2.class_id;
-        return false;
-    });
-    auto last = std::unique(keypoints.begin(), keypoints.end(), [&](auto I, auto J) {
-        return !(std::abs(I.pt.x - J.pt.x) > EPS2 or std::abs(I.pt.x - J.pt.x) > EPS2 or
-                 std::abs(I.size - J.size) > EPS2 or std::abs(I.angle - J.angle) > EPS2);
-    });
-    keypoints.erase(last, keypoints.end());
-    for (auto &kpt : keypoints) {
-        kpt.pt *= 0.5;
-        kpt.size *= 0.5;
-        kpt.octave = (kpt.octave & ~255) | ((kpt.octave - 1) & 255);
-    }
-    std::cout << keypoints.size() << std::endl;
-}
+
 
 }  // namespace sift

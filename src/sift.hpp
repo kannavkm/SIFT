@@ -28,7 +28,6 @@ class sift_handler {
 
     ~sift_handler();
 
-
    private:
     class scale_space_extrema_parallel : public cv::ParallelLoopBody {
        public:
@@ -93,7 +92,7 @@ class sift_handler {
 
     static constexpr double SCALE_MULTIPLIER = 3;
     static constexpr size_t WINDOW_WIDTH = 4;
-    static constexpr double DESCRIPTOR_MAX=0.2;
+    static constexpr double DESCRIPTOR_MAX = 0.2;
 
     std::vector<cv::KeyPoint> keypoints;
 

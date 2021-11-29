@@ -6,12 +6,15 @@
 
 #include <chrono>
 #include <iostream>
+#include <numeric>
 
 namespace sift {
 
 #define G(x, a, b) ((x).at<double>(a, b))
 #define EPS ((double)1e-15)
 #define EPS2 ((double)1)
+#define deg2rad(x) ((double)x * PI / 180)
+#define rad2deg(x) ((double)x * 180 / PI)
 
 /**
  * Constructor for the sift handler class
@@ -68,6 +71,7 @@ void sift_handler::exec() {
             cv::imwrite(name2, temp);
         }
     }
+    TIMEIT(get_descriptors);
 }
 
 /**
@@ -100,7 +104,7 @@ void sift_handler::gen_gaussian_images() {
     }
     // Now do gaussian blurring
     cv::Mat temp = base.clone();
-    images.reserve(octaves);
+    gauss_images.reserve(octaves);
     for (int i = 0; i < octaves; i++) {
         std::vector<cv::Mat> octave_images(IMAGES);
         // the base image for each octave is just interpolated base image
@@ -110,7 +114,7 @@ void sift_handler::gen_gaussian_images() {
         }
         size_t baseid = octave_images.size() - 3;
         cv::resize(octave_images[baseid], temp, cv::Size(), 0.5, 0.5, cv::INTER_NEAREST);
-        images.push_back(std::move(octave_images));
+        gauss_images.push_back(std::move(octave_images));
     }
 }
 
@@ -119,13 +123,12 @@ void sift_handler::gen_gaussian_images() {
  */
 void sift_handler::gen_dog_images() {
     // dog would result vector of size IMAGES - 1
-    for (auto &octave : images) {
+    for (auto &octave : gauss_images) {
         std::vector<cv::Mat> dog_images(IMAGES - 1);
         for (int j = 1; j < (int)IMAGES; j++) {
             dog_images[j - 1] = octave[j] - octave[j - 1];
         }
-        octave.clear();
-        octave = std::move(dog_images);
+        images.push_back(std::move(dog_images));
     }
 }
 
@@ -139,7 +142,7 @@ void sift_handler::gen_scale_space_extrema() {
         for (int img = 1; img < (int)IMAGES - 2; img++) {
             cv::Size size = images[oct][img].size();
             cv::parallel_for_(cv::Range(BORDER, size.height - BORDER),
-                              scale_space_extrema_parallel(images, oct, img, tls_kpts_struct));
+                              scale_space_extrema_parallel(images, gauss_images, oct, img, tls_kpts_struct));
         }
     }
     std::vector<std::vector<cv::KeyPoint> *> kpt_vecs;
@@ -216,6 +219,11 @@ std::vector<cv::Mat> sift_handler::scale_space_extrema_parallel::get_pixel_cube(
  */
 bool sift_handler::scale_space_extrema_parallel::is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube) {
     bool is_maximum = true, is_minimum = true;
+
+    if (std::abs(G(pixel_cube[1], 1, 1)) <= threshold){
+        return false;
+    }
+
     for (int k = 0; k < 3; k++) {
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
@@ -224,7 +232,7 @@ bool sift_handler::scale_space_extrema_parallel::is_pixel_extremum(const std::ve
             }
         }
     }
-    return (is_minimum | is_maximum);
+    return ( ((G(pixel_cube[1], 1, 1)<0) & is_minimum)  | ((G(pixel_cube[1], 1, 1)>0) & is_maximum) );
 }
 
 /**
@@ -335,7 +343,7 @@ int sift_handler::scale_space_extrema_parallel::localize_extrema(int oct, int im
  */
 void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt,
                                                                            std::vector<cv::KeyPoint> &keypoints) const {
-    cv::Size sz = images[oct][img].size();
+    cv::Size sz = gauss_images[oct][img].size();
 
     std::vector<double> hist(BINS), smooth(BINS);
     double base_x = round(kpt.pt.x / double(1 << oct));
@@ -351,10 +359,10 @@ void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int o
         if (base_y + i > 0 and base_y + i < sz.height - 1) {
             for (int j = -radius; j <= radius; j++) {
                 if (base_x + j > 0 and base_x + j < sz.width - 1) {
-                    double dx = G(images[oct][img], base_y + i, base_x + j + 1) -
-                                G(images[oct][img], base_y + i, base_x + j - 1);
-                    double dy = G(images[oct][img], base_y + i - 1, base_x + j) -
-                                G(images[oct][img], base_y + i + 1, base_x + j);
+                    double dx = G(gauss_images[oct][img], base_y + i, base_x + j + 1) -
+                                G(gauss_images[oct][img], base_y + i, base_x + j - 1);
+                    double dy = G(gauss_images[oct][img], base_y + i - 1, base_x + j) -
+                                G(gauss_images[oct][img], base_y + i + 1, base_x + j);
                     double mag = std::sqrt(dx * dx + dy * dy);
                     double orientation = (std::atan(dy / dx) * 180) / PI;
                     size_t index = ((size_t)std::round((orientation * BINS) / 360)) % BINS;
@@ -392,4 +400,139 @@ void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int o
     }
 }
 
+    void sift_handler::get_descriptors(){
+
+        for(auto &kpt : keypoints){
+
+            int octave = kpt.octave & 255;
+            int layer = (kpt.octave >> 8) & 255;
+            if(octave >= 128){
+                octave |= -128;
+            }
+            double scale =  1.0 / double( 1 << (octave * (octave >= 0 ? 1 : -1)));
+
+            auto image = gauss_images[octave + 1][layer];
+            cv::Size size = image.size();
+
+            int pt_x = (int)std::round(scale * kpt.pt.x);
+            int pt_y = (int)std::round(scale * kpt.pt.y);
+            double angle = 360 - kpt.angle;
+            double cos = std::cos(deg2rad(angle));
+            double sin = std::sin(deg2rad(angle));
+            double weight_multiplier = - 0.5 / (std::pow(0.5 * WINDOW_WIDTH, 2));
+
+            constexpr int bins = 8;
+            constexpr double bins_per_degree = bins * 1.0 / 360.0;
+
+            std::vector<double> rows, cols, magnitudes, orientations;
+
+            double hist_width = SCALE_MULTIPLIER * 0.5 * scale * kpt.size;
+            int half_width =  (int) std::min(std::round(hist_width * (WINDOW_WIDTH + 1) / std::sqrt(2.0)), sqrt(pow(size.height, 2) + pow(size.width, 2) ));
+
+            for(int i = -half_width ; i <= half_width; i++){
+                for(int j = -half_width; j <= half_width; j++){
+                    double row_rotation = sin*j + cos*i;
+                    double col_rotation = sin*i + cos*j;
+
+                    double bin_row = (row_rotation/ hist_width) + 0.5 * (WINDOW_WIDTH -1);
+                    double bin_col = (col_rotation/ hist_width) + 0.5 * (WINDOW_WIDTH -1);
+
+                    if(bin_row >- -1 and bin_col > -1 and bin_row < WINDOW_WIDTH and bin_col < WINDOW_WIDTH){
+
+                        int win_row = pt_y + i, win_col = pt_x + j;
+
+                        if (win_row > 0 and win_col > 0 and win_row < size.height -1 and win_col < size.width -1 ){
+
+                            double dx = G(image, win_row,win_col + 1) - G(image,win_row,win_col - 1);
+                            double dy = G(image, win_row-1,win_col) - G(image,win_row+1,win_col);
+                            double mag = std::sqrt(std::pow(dx, 2) + std::pow(dy, 2));
+                            double orient = std::fmod(rad2deg(std::atan(dy/dx)) , 360.0);
+
+                            double exponent = std::pow(row_rotation / hist_width, 2) + std::pow(col_rotation/hist_width, 2);
+                            double weight = std::exp(weight_multiplier * exponent);
+
+                            rows.push_back(bin_row);
+                            cols.push_back(bin_col);
+                            magnitudes.push_back(mag * weight);
+                            orientations.push_back((orient - angle) * bins_per_degree);
+                        }
+                    }
+                }
+            }
+            int dims[] = {WINDOW_WIDTH + 2, WINDOW_WIDTH + 2, bins};
+            cv::Mat tensor(3, dims, CV_64F, cv::Scalar::all(0));
+
+            for(unsigned int l = 0; l < rows.size(); l++){
+
+                int row_bin = (int) rows[l];
+                int col_bin = (int) cols[l];
+                int orient_bin = (int) orientations[l];
+
+                double row_bin_pr = rows[l] - row_bin;
+                double col_bin_pr = cols[l] - col_bin;
+                double orient_bin_pr = orientations[l] - orient_bin;
+
+
+                for(int i = 0; i < 2; i++){
+                    for(int j = 0; j < 2; j++){
+                        for(int k = 0; k < 2; k++){
+                            double c = magnitudes[l];
+                            c *= (!i ? (1 - row_bin_pr) : (row_bin_pr));
+                            c *= (!j ? (1 - col_bin_pr) : (col_bin_pr));
+                            c *= (!k ? (1 - orient_bin_pr) : (orient_bin_pr));
+//                            std::cout << "hi" << std::endl;
+//                            std::cout << "l: " << l << " i: " <<row_bin +1 +  i << " j: " << col_bin + 1 +j << " k: " << (orient_bin + bins+ k) % bins << std::endl;
+                            tensor.at<double>(row_bin + 1 +  i, col_bin +1 +  j ,  (orient_bin + bins+ k) % bins) += c;
+//                            std::cout << "hello" << std::endl;
+
+                        }
+                    }
+                }
+            }
+
+            std::vector<double> descriptor_vector;
+            
+            for(int i = 1; i <= WINDOW_WIDTH; i++){
+                for(int j = 1; j <= WINDOW_WIDTH; j++){
+                    for(int k = 0; k < bins; k++){
+                        descriptor_vector.push_back(tensor.at<double>(i, j, k));
+                    }
+                }
+            }
+            double norm = std::sqrt(std::inner_product(descriptor_vector.begin(), descriptor_vector.end(), descriptor_vector.begin(), 0.0L));
+            double thresh = norm * DESCRIPTOR_MAX;
+            std::for_each(descriptor_vector.begin(), descriptor_vector.end(), [&](auto& I) {
+                I = I > thresh ? thresh: I;
+                I /= norm;
+                I = std::round(I * 512);
+                I = I < 0 ? 0 : I;
+                I = I > 255 ? 255: I;
+            });
+            
+            descriptors.push_back(std::move(descriptor_vector));
+        }
+
+    }
+
+
 }  // namespace sift
+
+
+
+/*
+
+        descriptor_vector = histogram_tensor[1:-1, 1:-1, :].flatten()  # Remove histogram borders
+        # Threshold and normalize descriptor_vector
+        threshold = norm(descriptor_vector) * descriptor_max_value
+        descriptor_vector[descriptor_vector > threshold] = threshold
+        descriptor_vector /= max(norm(descriptor_vector), float_tolerance)
+        # Multiply by 512, round, and saturate between 0 and 255 to convert from float32 to unsigned char (OpenCV convention)
+        descriptor_vector = round(512 * descriptor_vector)
+        descriptor_vector[descriptor_vector < 0] = 0
+        descriptor_vector[descriptor_vector > 255] = 255
+        descriptors.append(descriptor_vector)
+    return array(descriptors, dtype='float32')
+
+
+
+*/

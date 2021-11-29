@@ -28,12 +28,14 @@ class sift_handler {
 
     ~sift_handler();
 
+
    private:
     class scale_space_extrema_parallel : public cv::ParallelLoopBody {
        public:
-        scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images, int _oct, int _img,
+        scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images,
+                                     std::vector<std::vector<cv::Mat>> &_gauss_images, int _oct, int _img,
                                      cv::TLSData<std::vector<cv::KeyPoint>> &_tls_data_struct)
-            : images(_images), oct(_oct), img(_img), tls_data_struct(_tls_data_struct){};
+            : images(_images), gauss_images(_gauss_images), oct(_oct), img(_img), tls_data_struct(_tls_data_struct){};
 
         void operator()(const cv::Range &range) const override;
 
@@ -49,7 +51,7 @@ class sift_handler {
 
         void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint> &keypoints) const;
 
-        const std::vector<std::vector<cv::Mat>> &images;
+        const std::vector<std::vector<cv::Mat>> &images, &gauss_images;
         int oct;
         int img;
         cv::TLSData<std::vector<cv::KeyPoint>> &tls_data_struct;
@@ -64,6 +66,8 @@ class sift_handler {
     void gen_scale_space_extrema();
 
     void clean_keypoints();
+
+    void get_descriptors();
 
    public:
     cv::Mat base, onex;
@@ -87,9 +91,16 @@ class sift_handler {
     static constexpr double RADIUS_FACTOR = 3;
     static constexpr double PI = 3.14159265358979323846;
 
+    static constexpr double SCALE_MULTIPLIER = 3;
+    static constexpr size_t WINDOW_WIDTH = 4;
+    static constexpr double DESCRIPTOR_MAX=0.2;
+
     std::vector<cv::KeyPoint> keypoints;
 
     std::vector<std::vector<cv::Mat>> images;
+    std::vector<std::vector<cv::Mat>> gauss_images;
+
+    std::vector<std::vector<double>> descriptors;
 };
 
 }  // namespace sift

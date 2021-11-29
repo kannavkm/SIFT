@@ -72,6 +72,8 @@ class sift_handler {
     cv::Mat base, onex;
     int32_t octaves;
     std::string name;
+    std::vector<cv::KeyPoint> keypoints;
+    std::vector<std::vector<double>> descriptors;
 
    private:
     static constexpr size_t SCALES = 3;
@@ -94,12 +96,8 @@ class sift_handler {
     static constexpr size_t WINDOW_WIDTH = 4;
     static constexpr double DESCRIPTOR_MAX = 0.2;
 
-    std::vector<cv::KeyPoint> keypoints;
-
     std::vector<std::vector<cv::Mat>> images;
     std::vector<std::vector<cv::Mat>> gauss_images;
-
-    std::vector<std::vector<double>> descriptors;
 };
 
 }  // namespace sift

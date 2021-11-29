@@ -78,9 +78,13 @@ void sift_handler::exec() {
  * helper function
  */
 cv::Mat sift_handler::get() const {
-    cv::Mat image;
-    base.convertTo(image, CV_8U);
-    return image;
+    cv::Mat desc(this->descriptors.size(), this->descriptors.at(0).size(), CV_64FC1);
+    for (int i = 0; i < (int)desc.rows; ++i) {
+        for (int j = 0; j < (int)desc.cols; ++j) {
+            desc.at<double>(i, j) = this->descriptors.at(i).at(j);
+        }
+    }
+    return desc;
 }
 
 cv::Mat sift_handler::getImg(const cv::Mat &mat) {
@@ -486,8 +490,8 @@ void sift_handler::get_descriptors() {
 
         std::vector<double> descriptor_vector;
 
-        for (int i = 1; i <= (int) WINDOW_WIDTH; i++) {
-            for (int j = 1; j <= (int) WINDOW_WIDTH; j++) {
+        for (int i = 1; i <= (int)WINDOW_WIDTH; i++) {
+            for (int j = 1; j <= (int)WINDOW_WIDTH; j++) {
                 for (int k = 0; k < bins; k++) {
                     descriptor_vector.push_back(tensor.at<double>(i, j, k));
                 }

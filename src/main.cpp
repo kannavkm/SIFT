@@ -26,15 +26,6 @@ int main(int argc, char **argv) {
         printf("No image data \n");
         return -1;
     }
-    // move the image to conserve memory no need to release it now
-    std::string name = getFileName(argv[1]);
-    std::string name2 = getFileName(argv[2]);
-
-    sift::sift_handler s1(name, std::move(image1));
-    // namedWindow("Display Image", WINDOW_AUTOSIZE);
-    s1.exec();
-    auto keypoints1 = s1.keypoints;
-    cv::Mat descriptors1 = s1.get();
 
     Mat image2 = imread(argv[2], cv::IMREAD_GRAYSCALE);
     if (!image2.data) {
@@ -42,10 +33,25 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    sift::sift_handler s2(name2, std::move(image2));
+    // move the image to conserve memory no need to release it now
+    std::string name = getFileName(argv[1]);
+    std::string name2 = getFileName(argv[2]);
+
+    auto cp_img1 = image1.clone();
+    auto cp_img2 = image2.clone();
+
+    sift::sift_handler s1(name, std::move(cp_img1));
+    // namedWindow("Display Image", WINDOW_AUTOSIZE);
+    s1.exec();
+    auto keypoints1 = s1.keypoints;
+    auto descriptors = s1.descriptors;
+    cv::Mat descriptors1 = s1.get();
+
+
+
+    sift::sift_handler s2(name2, std::move(cp_img2));
     // namedWindow("Display Image", WINDOW_AUTOSIZE);
     s2.exec();
-
     auto keypoints2 = s2.keypoints;
     cv::Mat descriptors2 = s2.get();
 
@@ -64,10 +70,10 @@ int main(int argc, char **argv) {
     Mat img_matches;
     drawMatches(image1, keypoints1, image2, keypoints2, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
                 std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-    //-- Show detected matches
+//    -- Show detected matches
     imshow("Good Matches", img_matches);
     waitKey();
 
-    // waitKey(0);
+     waitKey(0);
     return 0;
 }

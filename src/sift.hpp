@@ -13,7 +13,7 @@
         auto start = std::chrono::steady_clock::now();                            \
         f();                                                                      \
         auto end = std::chrono::steady_clock::now();                              \
-        std::chrono::duration<double> duration = end - start;                     \
+        std::chrono::duration<long double> duration = end - start;                     \
         std::cout << "elapsed time: " << #f << ": " << duration.count() << "s\n"; \
     }
 
@@ -77,21 +77,21 @@ class sift_handler {
 
    private:
     static constexpr int SCALES = 3;
-    static constexpr int BORDER = 10;
-    static constexpr double contrast_threshold = 0.04;
-    static constexpr double SIGMA = 1.6;
-    static constexpr double assumed_blur = 0.5;
+    static constexpr int BORDER = 5;
+    static constexpr long double contrast_threshold = 0.04;
+    static constexpr long double SIGMA = 1.6;
+    static constexpr long double assumed_blur = 0.5;
     static constexpr int IMAGES = SCALES + 3;
-    static constexpr double EIGEN_VALUE_RATIO = 10.;
+    static constexpr long double EIGEN_VALUE_RATIO = 10.;
     static constexpr int BINS = 36;
-    static constexpr double PEAK_RATIO = .8;
-    static constexpr double SCALE_FACTOR = 1.5;
-    static constexpr double RADIUS_FACTOR = 3;
+    static constexpr long double PEAK_RATIO = .8;
+    static constexpr long double SCALE_FACTOR = 1.5;
+    static constexpr long double RADIUS_FACTOR = 3;
     static constexpr long double PI = 3.14159265358979323846;
 
-    static constexpr double SCALE_MULTIPLIER = 3;
+    static constexpr long double SCALE_MULTIPLIER = 3;
     static constexpr int WINDOW_WIDTH = 4;
-    static constexpr double DESCRIPTOR_MAX = 0.2;
+    static constexpr long double DESCRIPTOR_MAX = 0.2;
 
     std::vector<std::vector<cv::Mat>> images;
     std::vector<std::vector<cv::Mat>> gauss_images;

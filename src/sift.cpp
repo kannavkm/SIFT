@@ -27,10 +27,11 @@ sift_handler::sift_handler(const std::string &_name, cv::Mat &&_base) : name(_na
     onex = temp.clone();
     // compute the number of octaves
     cv::Size sz = temp.size();
-    octaves = (int)std::round(std::log2((double)std::min(sz.width, sz.height))) - 1;
+    octaves = (int)std::round(std::log2((double)std::min(sz.width, sz.height)));
+    std::cout << "Octaves: " << octaves << std::endl;
     // interpolate and blur base image
     cv::resize(temp, interpolated, sz * 2, 0, 0, cv::INTER_LINEAR);
-    double diff = std::max(std::sqrt(pow(SIGMA, 2) - 4 * pow(assumed_blur, 2)), 0.1);
+    double diff = std::max(std::sqrt(std::pow(SIGMA, 2) - 4 * std::pow(assumed_blur, 2)), 0.1);
     cv::GaussianBlur(interpolated, blurred_image, cv::Size(0, 0), diff, diff);
     base = blurred_image;
 }
@@ -57,7 +58,10 @@ void sift_handler::exec() {
     TIMEIT(gen_gaussian_images);
     TIMEIT(gen_dog_images);
     TIMEIT(gen_scale_space_extrema);
+    std::cout << keypoints.size() << " #initial\n" ;
     TIMEIT(clean_keypoints);
+    std::cout << keypoints.size() << " #final\n";
+    
     cv::Mat out, temp;
     onex.convertTo(temp, CV_8U);
     cv::drawKeypoints(temp, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
@@ -71,6 +75,8 @@ void sift_handler::exec() {
 //            cv::imwrite(name2, temp);
 //        }
 //    }
+
+
     TIMEIT(get_descriptors);
 }
 
@@ -145,7 +151,7 @@ void sift_handler::gen_dog_images() {
 void sift_handler::gen_scale_space_extrema() {
     cv::TLSDataAccumulator<std::vector<cv::KeyPoint> > tls_kpts_struct;
     for (int oct = 0; oct < octaves; oct++) {
-        for (int img = 1; img < (int)IMAGES - 2; img++) {
+        for (int img = 1; img < images[oct].size() - 1; img++) {
             cv::Size size = images[oct][img].size();
             cv::parallel_for_(cv::Range(BORDER, size.height - BORDER),
                               scale_space_extrema_parallel(images, gauss_images, oct, img, tls_kpts_struct));
@@ -282,6 +288,10 @@ int sift_handler::scale_space_extrema_parallel::localize_extrema(int oct, int im
     for (attempt = 0; attempt < attempts; attempt++) {
         pixel_cube.clear();
         pixel_cube = get_pixel_cube(oct, img, i, j);
+
+        for(int k = 0; k < 3; k++){
+            pixel_cube[k] /= 255.0;
+        }
         // gradient
         grad = get_gradient(pixel_cube);
         // hessian
@@ -302,8 +312,8 @@ int sift_handler::scale_space_extrema_parallel::localize_extrema(int oct, int im
         img += (int)std::round(G(res, 2, 0));
 
         // extremum is outside search zone
-        if (i < BORDER || i >= sz.width - BORDER || j < BORDER || j >= sz.height - BORDER || img < 1 ||
-            img >= IMAGES - 2) {
+        if (i < BORDER || i >= sz.height - BORDER || j < BORDER || j >= sz.width - BORDER || img < 1 ||
+            img > SCALES) {
             return -1;
         }
         grad.release();
@@ -325,18 +335,18 @@ int sift_handler::scale_space_extrema_parallel::localize_extrema(int oct, int im
         if (hess_det <= 0) {
             return -1;
         }
-        double ratio = (hess_trace * hess_trace) / hess_det;
+        // double ratio = (hess_trace * hess_trace) / hess_det;
 
         // Below code is reponsible for eliminating edge responses using hessian trace and
         // determinant
-        if (ratio < THRESHOLD_EIGEN_RATIO) {
-            double keypt_octave = oct + (1 << 8) * img + (1 << 16) * std::round((G(res, 2, 0) + 0.5) * 255);
+        if ((hess_trace * hess_trace) *EIGEN_VALUE_RATIO < std::pow(EIGEN_VALUE_RATIO + 1, 2) * hess_det) {
+            int keypt_octave = oct + (1 << 8) * img + (1 << 16) * int(std::round((G(res, 2, 0) + 0.5) * 255));
             double keypt_pt_x = (j + G(res, 0, 0)) * (1 << oct);
             double keypt_pt_y = (i + G(res, 1, 0)) * (1 << oct);
-            double keypt_size = SIGMA * (std::pow(2, img + G(res, 2, 0)) / (1.0 * SCALES)) * (1 << (oct + 1));
+            double keypt_size = SIGMA * (std::pow(2, img + G(res, 2, 0) /  SCALES)) * (1 << (oct + 1));
             double keypt_response = std::abs(value);
             kpt = cv::KeyPoint(keypt_pt_x, keypt_pt_y, keypt_size,
-                               -1,  // angle
+                               -1.0F,  // angle
                                keypt_response, keypt_octave);
             return img;
         }
@@ -353,13 +363,13 @@ void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int o
     cv::Size sz = gauss_images[oct][img].size();
 
     std::vector<double> hist(BINS), smooth(BINS);
-    double base_x = round(kpt.pt.x / double(1 << oct));
-    double base_y = round(kpt.pt.y / double(1 << oct));
-    double base_size = kpt.size / double(1 << (oct + 1));
+    int base_x = (int)std::round(kpt.pt.x / double(1 << oct));
+    int base_y = (int)std::round(kpt.pt.y / double(1 << oct));
 
-    double scale = SCALE_FACTOR * base_size;
-    double radius = scale * RADIUS_FACTOR;
+    double scale = SCALE_FACTOR * kpt.size / double(1 << (oct + 1));
+    int radius = (int)std::round(scale * RADIUS_FACTOR);
     double weight_factor = -0.5 / (scale * scale);
+
 
     // Creating a histogram of orientations
     for (int i = -radius; i <= radius; i++) {
@@ -372,7 +382,7 @@ void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int o
                                 G(gauss_images[oct][img], base_y + i + 1, base_x + j);
                     double mag = std::sqrt(dx * dx + dy * dy);
                     double orientation = rad2deg(std::atan2(dy , dx));
-                    int index = ((int)std::round((orientation * BINS) / 360) % BINS + BINS) % BINS;
+                    int index = (int(std::round((orientation * BINS) / 360)) % BINS + BINS) % BINS;
                     hist[index] += std::exp(weight_factor * (i * i + j * j)) * mag;
                 }
             }
@@ -383,9 +393,7 @@ void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int o
 
     // Smoothing out the histogram
     for (int i = 0; i < (int)BINS; i++) {
-        smooth[i] =
-            ((6 * hist[i]) + (4 * (hist[circ(i - 1)] + hist[circ(i + 1)])) + (hist[circ(i - 2)] + hist[circ(i + 2)])) /
-            16.;
+        smooth[i] = (6 * hist[i] + 4 * (hist[circ(i - 1)] + hist[circ(i + 1)]) + hist[circ(i - 2)] + hist[circ(i + 2)]) /   16.;
     }
 
     // select the Gaussian smoothed image
@@ -396,7 +404,7 @@ void sift_handler::scale_space_extrema_parallel::get_keypoint_orientations(int o
             double peak = smooth[i];
             if (peak >= PEAK_RATIO * max_orientation) {
                 double interpolated_index = std::fmod((i + 0.5 * (l - r) / (l + r - 2 * peak)), (double)BINS);
-                double orientation = 360 - (interpolated_index * 360 / BINS);
+                double orientation = 360 - interpolated_index * 360 / BINS;
                 if (std::abs(360 - orientation) < EPS) {
                     orientation = 0;
                 }
@@ -488,9 +496,9 @@ void sift_handler::get_descriptors() {
                         c *= (!k ? (1 - orient_bin_pr) : (orient_bin_pr));
                         // std::cout << "l: " << l << " i: " << row_bin + 1 + i << " j: " << col_bin + 1 + j
                         //           << " k: " << (orient_bin + bins + k) % bins << std::endl;
-                        if(row_bin + 1 + i < 0 )  std::cout << "1\n";
-                        if (col_bin + 1 + j < 0) std::cout << "2\n";
-                        if (((orient_bin + k) % bins + bins) % bins < 0) std::cout << "3\n";
+                        // if(row_bin + 1 + i < 0 )  std::cout << "1\n";
+                        // if (col_bin + 1 + j < 0) std::cout << "2\n";
+                        // if (((orient_bin + k) % bins + bins) % bins < 0) std::cout << "3\n";
                         tensor.at<double>(row_bin + 1 + i, col_bin + 1 + j, ((orient_bin + k) % bins + bins) % bins) += c;
                     }
                 }

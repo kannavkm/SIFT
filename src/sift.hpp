@@ -77,14 +77,12 @@ class sift_handler {
 
    private:
     static constexpr int SCALES = 3;
-    static constexpr int BORDER = 5;
+    static constexpr int BORDER = 10;
     static constexpr double contrast_threshold = 0.04;
     static constexpr double SIGMA = 1.6;
     static constexpr double assumed_blur = 0.5;
     static constexpr int IMAGES = SCALES + 3;
     static constexpr double EIGEN_VALUE_RATIO = 10.;
-    static constexpr double THRESHOLD_EIGEN_RATIO =
-        ((EIGEN_VALUE_RATIO + 1) * (EIGEN_VALUE_RATIO + 1)) / EIGEN_VALUE_RATIO;
     static constexpr int BINS = 36;
     static constexpr double PEAK_RATIO = .8;
     static constexpr double SCALE_FACTOR = 1.5;

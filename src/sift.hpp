@@ -14,13 +14,13 @@
         f();                                                                      \
         auto end = std::chrono::steady_clock::now();                              \
         std::chrono::duration<double> duration = end - start;                     \
-        std::cout << "elapsed time: " << #f << ": " << duration.count() << "s\n"; \
+        std::cerr << "elapsed time: " << #f << ": " << duration.count() << "s\n"; \
     }
 
 namespace sift {
 class sift_handler {
    public:
-    explicit sift_handler(const std::string &_name, cv::Mat &&_base);
+    explicit sift_handler(std::string _name, cv::Mat &&_base);
 
     void exec();
 
@@ -29,6 +29,20 @@ class sift_handler {
     ~sift_handler();
 
    private:
+    class get_descriptors_parallel : public cv::ParallelLoopBody {
+       public:
+        get_descriptors_parallel(std::vector<cv::KeyPoint> &_keypoints,
+                                 std::vector<std::vector<cv::Mat>> &_gauss_images,
+                                 cv::TLSData<std::vector<std::pair<int, std::vector<double>>>> &_tls_data_struct)
+            : keypts(_keypoints), gauss_images(_gauss_images), tls_data_struct(_tls_data_struct){};
+
+        void operator()(const cv::Range &range) const override;
+
+        const std::vector<cv::KeyPoint> keypts;
+        const std::vector<std::vector<cv::Mat>> &gauss_images;
+        cv::TLSData<std::vector<std::pair<int, std::vector<double>>>> &tls_data_struct;
+    };
+
     class scale_space_extrema_parallel : public cv::ParallelLoopBody {
        public:
         scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images,
@@ -38,7 +52,7 @@ class sift_handler {
 
         void operator()(const cv::Range &range) const override;
 
-        std::vector<cv::Mat> get_pixel_cube(int oct, int img, int i, int j) const;
+        [[nodiscard]] std::vector<cv::Mat> get_pixel_cube(int _oct, int _img, int i, int j) const;
 
         static cv::Mat get_gradient(const std::vector<cv::Mat> &pixel_cube);
 
@@ -46,9 +60,10 @@ class sift_handler {
 
         static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
 
-        int localize_extrema(int oct, int img, int i, int j, cv::KeyPoint &) const;
+        int localize_extrema(int _oct, int _img, int i, int j, cv::KeyPoint &) const;
 
-        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint> &keypoints) const;
+        void get_keypoint_orientations(int _oct, int _img, cv::KeyPoint &kpt,
+                                       std::vector<cv::KeyPoint> &_keypoints) const;
 
         const std::vector<std::vector<cv::Mat>> &images, &gauss_images;
         int oct;
@@ -77,7 +92,7 @@ class sift_handler {
 
    private:
     static constexpr int SCALES = 3;
-    static constexpr int BORDER = 10;
+    static constexpr int BORDER = 5;
     static constexpr double contrast_threshold = 0.04;
     static constexpr double SIGMA = 1.6;
     static constexpr double assumed_blur = 0.5;
@@ -87,7 +102,7 @@ class sift_handler {
     static constexpr double PEAK_RATIO = .8;
     static constexpr double SCALE_FACTOR = 1.5;
     static constexpr double RADIUS_FACTOR = 3;
-    static constexpr long double PI = 3.14159265358979323846;
+    static constexpr double PI = 3.14159265358979323846;
 
     static constexpr double SCALE_MULTIPLIER = 3;
     static constexpr int WINDOW_WIDTH = 4;

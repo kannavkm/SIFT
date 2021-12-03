@@ -1,17 +1,19 @@
-#include <cstdio>
-#include <opencv2/opencv.hpp>
-
-#include "opencv2/xfeatures2d.hpp"
 #include "sift.hpp"
+
+#include <cstdio>
+#include <iostream>
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/xfeatures2d.hpp>
 
 using namespace std;
 using namespace cv;
 using namespace cv::xfeatures2d;
 
-string getFileName(string str) {
-    std::size_t found = str.find_last_of("/");
+string getFileName(const string& str) {
+    std::size_t found = str.find_last_of('/');
     auto file = str.substr(found + 1);
-    found = file.find_last_of(".");
+    found = file.find_last_of('.');
     auto name = file.substr(0, found);
     return name;
 }
@@ -47,33 +49,32 @@ int main(int argc, char **argv) {
     auto descriptors = s1.descriptors;
     cv::Mat descriptors1 = s1.get();
 
-
-
     sift::sift_handler s2(name2, std::move(cp_img2));
     // namedWindow("Display Image", WINDOW_AUTOSIZE);
     s2.exec();
     auto keypoints2 = s2.keypoints;
     cv::Mat descriptors2 = s2.get();
+    const Ptr<flann::IndexParams>& indexParams=new flann::KDTreeIndexParams(4);
+    const Ptr<flann::SearchParams>& searchParams=new flann::SearchParams(64);
 
-    Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
+    FlannBasedMatcher matcher(indexParams, searchParams);
     std::vector<std::vector<DMatch> > knn_matches;
-    matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+    matcher.knnMatch(descriptors1, descriptors2, knn_matches, 2);
 
     const float ratio_thresh = 0.7f;
     std::vector<DMatch> good_matches;
-    for (size_t i = 0; i < knn_matches.size(); i++) {
-        if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance) {
-            good_matches.push_back(knn_matches[i][0]);
+    for (auto & knn_match : knn_matches) {
+        if (knn_match[0].distance < ratio_thresh * knn_match[1].distance) {
+            good_matches.push_back(knn_match[0]);
         }
     }
     //-- Draw matches
     Mat img_matches;
     drawMatches(image1, keypoints1, image2, keypoints2, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
                 std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-//    -- Show detected matches
+    //    -- Show detected matches
     imshow("Good Matches", img_matches);
-    waitKey();
+    waitKey(0);
 
-     waitKey(0);
     return 0;
 }

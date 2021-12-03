@@ -59,15 +59,10 @@ sift_handler::~sift_handler() {
 void sift_handler::exec() {
     TIMEIT(gen_gaussian_images);
     TIMEIT(gen_dog_images);
-    TIMEIT(gen_scale_space_extrema);
-    std::cerr << keypoints.size() << " #initial\n";
-    TIMEIT(clean_keypoints);
-    std::cerr << keypoints.size() << " #final\n";
 
-    cv::Mat out, temp;
+    cv::Mat out, temp, temp2;
     onex.convertTo(temp, CV_8U);
-    cv::drawKeypoints(temp, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    cv::imwrite("Display-" + name + ".png", out);
+    temp2 = temp.clone();
 
     for (int oct = 0; oct < (int)images.size(); oct++) {
         for (int img = 0; img < (int)images[oct].size(); img++) {
@@ -76,6 +71,13 @@ void sift_handler::exec() {
             cv::imwrite(name2, temp);
         }
     }
+
+    TIMEIT(gen_scale_space_extrema);
+    TIMEIT(clean_keypoints);
+    std::cerr <<  "Keypoints: " << keypoints.size() << "\n";
+
+    cv::drawKeypoints(temp2, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    cv::imwrite("Display-" + name + ".png", out);
 
     TIMEIT(get_descriptors);
 }
@@ -134,6 +136,13 @@ void sift_handler::gen_gaussian_images() {
  */
 void sift_handler::gen_dog_images() {
     // dog would result vector of size IMAGES - 1
+//    images.assign(octaves, std::vector<cv::Mat> (IMAGES));
+//    for(int i = 0; i < octaves; i++){
+//        for(int j = 0; j < IMAGES; j++){
+//            images[i][j] = gauss_images[i][j].clone();
+//        }
+//    }
+    images.reserve(octaves);
     for (auto &octave : gauss_images) {
         std::vector<cv::Mat> dog_images(IMAGES - 1);
         for (int j = 1; j < (int)IMAGES; j++) {
@@ -200,11 +209,7 @@ void sift_handler::scale_space_extrema_parallel::operator()(const cv::Range &ran
         for (int j = BORDER; j < (int)(size.width - BORDER); j++) {
             std::vector<cv::KeyPoint> &kpts = tls_data_struct.getRef();
             std::vector<cv::Mat> pixel_cube = get_pixel_cube(oct, img, i, j);
-            static cv::Mutex mut;
             if (is_pixel_extremum(pixel_cube)) {
-                mut.lock();
-                std::cout << oct << " " << img << " " << i << " " << j << std::endl;
-                mut.unlock();
                 cv::KeyPoint kpt;
                 auto image_index = localize_extrema(oct, img, i, j, kpt);
                 if (image_index < 0) {
@@ -225,7 +230,7 @@ std::vector<cv::Mat> sift_handler::scale_space_extrema_parallel::get_pixel_cube(
     cv::Mat second_image = images[_oct][_img];
     cv::Mat third_image = images[_oct][_img + 1];
     cv::Rect r(j - 1, i - 1, 3, 3);
-    std::vector<cv::Mat> pixel_cube{first_image(r), second_image(r), third_image(r)};
+    std::vector<cv::Mat> pixel_cube{first_image(r).clone(), second_image(r).clone(), third_image(r).clone()};
     return pixel_cube;
 }
 

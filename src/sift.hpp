@@ -45,8 +45,9 @@ class sift_handler {
 
     class scale_space_extrema_parallel : public cv::ParallelLoopBody {
        public:
-        scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images,
-                                     std::vector<std::vector<cv::Mat>> &_gauss_images, int _oct, int _img,
+        scale_space_extrema_parallel(const std::vector<std::vector<cv::Mat>> &_images,
+                                     const std::vector<std::vector<cv::Mat>> &_gauss_images,
+                                     int _oct, int _img,
                                      cv::TLSData<std::vector<cv::KeyPoint>> &_tls_data_struct)
             : images(_images), gauss_images(_gauss_images), oct(_oct), img(_img), tls_data_struct(_tls_data_struct){};
 

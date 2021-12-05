@@ -30,6 +30,7 @@ sift_handler::sift_handler(std::string _name, cv::Mat &&_base) : name(std::move(
     cv::Size sz = temp.size();
     octaves = (int)std::round(std::log2((double)std::min(sz.width, sz.height)));
     std::cerr << "Octaves: " << octaves << std::endl;
+    std::cerr << "Size: " << sz << std::endl;
     // interpolate and blur base image
     cv::resize(temp, interpolated, sz * 2, 0, 0, cv::INTER_LINEAR);
     double diff = std::max(std::sqrt(std::pow(SIGMA, 2) - 4 * std::pow(assumed_blur, 2)), 0.1);
@@ -57,6 +58,9 @@ sift_handler::~sift_handler() {
  * calls the necessary functions
  */
 void sift_handler::exec() {
+
+    std::cerr << "Running SIFT for " << name << "\n";
+
     TIMEIT(gen_gaussian_images);
     TIMEIT(gen_dog_images);
 
@@ -64,29 +68,32 @@ void sift_handler::exec() {
     onex.convertTo(temp, CV_8U);
     temp2 = temp.clone();
 
-    for (int oct = 0; oct < (int)images.size(); oct++) {
-        for (int img = 0; img < (int)images[oct].size(); img++) {
-            cv::normalize(images[oct][img], temp, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-            std::string name2 = name + std::to_string(oct) + '-' + std::to_string(img) + ".png";
-            cv::imwrite(name2, temp);
-        }
-    }
+//    for (int oct = 0; oct < (int)images.size(); oct++) {
+//        for (int img = 0; img < (int)images[oct].size(); img++) {
+//            cv::normalize(images[oct][img], temp, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+//            std::string name2 = name + std::to_string(oct) + '-' + std::to_string(img) + ".png";
+//            cv::imwrite(name2, temp);
+//        }
+//    }
 
     TIMEIT(gen_scale_space_extrema);
     TIMEIT(clean_keypoints);
-    std::cerr <<  "Keypoints: " << keypoints.size() << "\n";
 
     cv::drawKeypoints(temp2, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
     cv::imwrite("Display-" + name + ".png", out);
 
     TIMEIT(get_descriptors);
-}
+    std::cerr <<  "Keypoints: " << keypoints.size() << "\n";
+
+    std::cerr << "Completed SIFT for " << name << "\n\n";
+
+    }
 
 /**
  * helper function
  */
 cv::Mat sift_handler::get() const {
-    std::cout << descriptors.size() << " " << descriptors[0].size() << std::endl;
+//    std::cout << descriptors.size() << " " << descriptors[0].size() << std::endl;
     cv::Mat desc((int)descriptors.size(), (int)descriptors[0].size(), CV_32FC1);
     for (int i = 0; i < (int)descriptors.size(); ++i) {
         for (int j = 0; j < (int)descriptors[i].size(); ++j) {
@@ -197,7 +204,7 @@ void sift_handler::clean_keypoints() {
         kpt.size *= 0.5;
         kpt.octave = (kpt.octave & ~255) | ((kpt.octave - 1) & 255);
     }
-    std::cerr << keypoints.size() << std::endl;
+//    std::cerr << keypoints.size() << std::endl;
 }
 
 void sift_handler::scale_space_extrema_parallel::operator()(const cv::Range &range) const {

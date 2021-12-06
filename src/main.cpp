@@ -25,111 +25,136 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    Mat ref = imread(argv[argc - 1]);
-    if (!ref.data) {
-        printf("No image data \n");
-        return -1;
-    }
-    std::string name_ref = getFileName(argv[argc - 1]);
+//    for (int i = 2; i <= 10; i++) {
+        vector<int> kpts;
+        for (int k = 1; k < argc; k++) {
 
-
-    FlannBasedMatcher matcher;
-
-    for (int k = argc - 2; k >= 1; k--) {
-
-        auto cp_img = ref.clone();
-        sift::sift_handler s_ref(name_ref, std::move(cp_img));
-        s_ref.exec();
-        auto ref_descriptors = s_ref.get();
-        auto ref_kpt = s_ref.keypoints;
-
-        Mat img = imread(argv[k]);
-        if (!img.data) {
-            printf("No image data - %s \n", argv[k]);
-            return -1;
-        }
-        std::string name = getFileName(argv[k]);
-        auto cp = img.clone();
-        sift::sift_handler s(name, std::move(cp));
-        s.exec();
-        cv::Mat desc = s.get();
-        auto kpt = s.keypoints;
-
-
-        std::vector<DMatch> matches, good_matches;
-        matcher.match(ref_descriptors, desc, matches);
-
-        double min_dist = 100;
-
-        for (int i = 0; i < ref_descriptors.rows; i++) {
-            double dist = matches[i].distance;
-            if (dist < min_dist) min_dist = dist;
-        }
-
-
-        //-- Use only "good" matches (i.e. whose distance is less than 3*min_dist )
-
-        for (int i = 0; i < ref_descriptors.rows; i++) {
-            if (matches[i].distance < 3 * min_dist) {
-                good_matches.push_back(matches[i]);
+            Mat img = imread(argv[k]);
+            if (!img.data) {
+                printf("No image data - %s \n", argv[k]);
+                return -1;
             }
+            std::string name = getFileName(argv[k]);
+            auto cp = img.clone();
+            sift::sift_handler s(name, std::move(cp));
+            s.exec();
+            kpts.push_back(s.keypoints.size());
+
         }
-        std::vector<Point2f> obj, scene;
 
-        for (auto &gm : good_matches) {
-            //-- Get the keypoints from the good matches
-            obj.push_back(ref_kpt[gm.queryIdx].pt);
-            scene.push_back(kpt[gm.trainIdx].pt);
+        for(auto & ss: kpts){
+            cout << ss << ",";
         }
+        cout << "\n";
+//    }
 
 
-        // Find the Homography Matrix
-        Mat H = findHomography(obj, scene, RANSAC);
-        // Use the Homography Matrix to warp the images
-        cv::Mat result;
-        warpPerspective(ref, result, H, cv::Size(ref.cols + img.cols, ref.rows));
-
-        cv::Mat half = result(cv::Rect(0, 0, img.cols, img.rows));
-//        cout << result.channels() << endl;
-        for(int i= 0; i < img.rows; i++){
-            cv::Vec3b* pixel2 = img.ptr<cv::Vec3b>(i);
-            cv::Vec3b* pixel = result.ptr<cv::Vec3b>(i);
-            for(int j = 0; j < img.cols; j++){
-                // std::cout << i << " " << j << std::endl;
-                for (int l = 0; l < result.channels(); l++) {
-                    if(pixel[j][l] == 0) {
-                        pixel[j][l] = pixel2[j][l]; 
-                    }
-                }
-            }
-        }
-        cv::Mat temp;
-        cv::addWeighted(img, 0.7, half, 0.3, 0.0, temp);
-        temp.copyTo(half);
-
-        Mat temp2;
-        cv::cvtColor(result, temp2, cv::COLOR_BGR2GRAY);
-        temp2.convertTo(temp, CV_64F);
-        vector<int> sums;
-        cv::reduce(temp2, sums, 0, REDUCE_SUM, CV_32S);
-        int remove_cols = count(sums.begin(), sums.end(), 0);
+//    Mat ref = imread(argv[argc - 1]);
+//    if (!ref.data) {
+//        printf("No image data \n");
+//        return -1;
+//    }
+//    std::string name_ref = getFileName(argv[argc - 1]);
 
 
-        cv::Rect r(0, 0, result.cols - remove_cols, result.rows);
-        result = result(r);
 
-        cerr << result.size() << "\n";
-
-
-        name_ref += '+' + name;
-        Mat img_matches;
-        drawMatches(ref, ref_kpt, img, kpt, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
-                    std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-        imwrite("./Matches" + name_ref + ".png", img_matches);
-        imwrite("./Final-" + name_ref + ".png", result);
-
-        ref = std::move(result);
-    }
+//    FlannBasedMatcher matcher;
+//
+//    for (int k = argc - 2; k >= 1; k--) {
+//
+//        auto cp_img = ref.clone();
+//        sift::sift_handler s_ref(name_ref, std::move(cp_img), 2);
+//        s_ref.exec();
+//        auto ref_descriptors = s_ref.get();
+//        auto ref_kpt = s_ref.keypoints;
+//
+//        Mat img = imread(argv[k]);
+//        if (!img.data) {
+//            printf("No image data - %s \n", argv[k]);
+//            return -1;
+//        }
+//        std::string name = getFileName(argv[k]);
+//        auto cp = img.clone();
+//        sift::sift_handler s(name, std::move(cp));
+//        s.exec();
+//        cv::Mat desc = s.get();
+//        auto kpt = s.keypoints;
+//
+//
+//        std::vector<DMatch> matches, good_matches;
+//        matcher.match(ref_descriptors, desc, matches);
+//
+//        double min_dist = 100;
+//
+//        for (int i = 0; i < ref_descriptors.rows; i++) {
+//            double dist = matches[i].distance;
+//            if (dist < min_dist) min_dist = dist;
+//        }
+//
+//
+//        //-- Use only "good" matches (i.e. whose distance is less than 3*min_dist )
+//
+//        for (int i = 0; i < ref_descriptors.rows; i++) {
+//            if (matches[i].distance < 3 * min_dist) {
+//                good_matches.push_back(matches[i]);
+//            }
+//        }
+//        std::vector<Point2f> obj, scene;
+//
+//        for (auto &gm : good_matches) {
+//            //-- Get the keypoints from the good matches
+//            obj.push_back(ref_kpt[gm.queryIdx].pt);
+//            scene.push_back(kpt[gm.trainIdx].pt);
+//        }
+//
+//
+//        // Find the Homography Matrix
+//        Mat H = findHomography(obj, scene, RANSAC);
+//        // Use the Homography Matrix to warp the images
+//        cv::Mat result;
+//        warpPerspective(ref, result, H, cv::Size(ref.cols + img.cols, ref.rows));
+//
+//        cv::Mat half = result(cv::Rect(0, 0, img.cols, img.rows));
+////        cout << result.channels() << endl;
+//        for(int i= 0; i < img.rows; i++){
+//            cv::Vec3b* pixel2 = img.ptr<cv::Vec3b>(i);
+//            cv::Vec3b* pixel = result.ptr<cv::Vec3b>(i);
+//            for(int j = 0; j < img.cols; j++){
+//                // std::cout << i << " " << j << std::endl;
+//                for (int l = 0; l < result.channels(); l++) {
+//                    if(pixel[j][l] == 0) {
+//                        pixel[j][l] = pixel2[j][l];
+//                    }
+//                }
+//            }
+//        }
+//        cv::Mat temp;
+//        cv::addWeighted(img, 0.7, half, 0.3, 0.0, temp);
+//        temp.copyTo(half);
+//
+//        Mat temp2;
+//        cv::cvtColor(result, temp2, cv::COLOR_BGR2GRAY);
+//        temp2.convertTo(temp, CV_64F);
+//        vector<int> sums;
+//        cv::reduce(temp2, sums, 0, REDUCE_SUM, CV_32S);
+//        int remove_cols = count(sums.begin(), sums.end(), 0);
+//
+//
+//        cv::Rect r(0, 0, result.cols - remove_cols, result.rows);
+//        result = result(r);
+//
+//        cerr << result.size() << "\n";
+//
+//
+//        name_ref += '+' + name;
+//        Mat img_matches;
+//        drawMatches(ref, ref_kpt, img, kpt, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
+//                    std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+//        imwrite("./Matches" + name_ref + ".png", img_matches);
+//        imwrite("./Final-" + name_ref + ".png", result);
+//
+//        ref = std::move(result);
+//    }
 
 //    Mat image1 = imread(argv[1], cv::IMREAD_GRAYSCALE);
 //    if (!image1.data) {

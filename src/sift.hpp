@@ -92,7 +92,7 @@ class sift_handler {
     std::vector<std::vector<double>> descriptors;
 
    private:
-    static constexpr int SCALES = 3;
+    static constexpr int SCALES = 6;
     static constexpr int BORDER = 5;
     static constexpr double contrast_threshold = 0.04;
     static constexpr double SIGMA = 1.6;

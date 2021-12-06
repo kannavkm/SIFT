@@ -14,13 +14,13 @@
         f();                                                                      \
         auto end = std::chrono::steady_clock::now();                              \
         std::chrono::duration<double> duration = end - start;                     \
-        std::cout << "elapsed time: " << #f << ": " << duration.count() << "s\n"; \
+        std::cerr << "elapsed time: " << #f << ": " << duration.count() << "s\n"; \
     }
 
 namespace sift {
 class sift_handler {
    public:
-    explicit sift_handler(const std::string &_name, cv::Mat &&_base);
+    explicit sift_handler(std::string _name, cv::Mat &&_base);
 
     void exec();
 
@@ -29,15 +29,31 @@ class sift_handler {
     ~sift_handler();
 
    private:
-    class scale_space_extrema_parallel : public cv::ParallelLoopBody {
+    class get_descriptors_parallel : public cv::ParallelLoopBody {
        public:
-        scale_space_extrema_parallel(std::vector<std::vector<cv::Mat>> &_images, int _oct, int _img,
-                                     cv::TLSData<std::vector<cv::KeyPoint>> &_tls_data_struct)
-            : images(_images), oct(_oct), img(_img), tls_data_struct(_tls_data_struct){};
+        get_descriptors_parallel(std::vector<cv::KeyPoint> &_keypoints,
+                                 std::vector<std::vector<cv::Mat>> &_gauss_images,
+                                 cv::TLSData<std::vector<std::pair<int, std::vector<double>>>> &_tls_data_struct)
+            : keypts(_keypoints), gauss_images(_gauss_images), tls_data_struct(_tls_data_struct){};
 
         void operator()(const cv::Range &range) const override;
 
-        std::vector<cv::Mat> get_pixel_cube(int oct, int img, size_t i, size_t j) const;
+        const std::vector<cv::KeyPoint> keypts;
+        const std::vector<std::vector<cv::Mat>> &gauss_images;
+        cv::TLSData<std::vector<std::pair<int, std::vector<double>>>> &tls_data_struct;
+    };
+
+    class scale_space_extrema_parallel : public cv::ParallelLoopBody {
+       public:
+        scale_space_extrema_parallel(const std::vector<std::vector<cv::Mat>> &_images,
+                                     const std::vector<std::vector<cv::Mat>> &_gauss_images,
+                                     int _oct, int _img,
+                                     cv::TLSData<std::vector<cv::KeyPoint>> &_tls_data_struct)
+            : images(_images), gauss_images(_gauss_images), oct(_oct), img(_img), tls_data_struct(_tls_data_struct){};
+
+        void operator()(const cv::Range &range) const override;
+
+        [[nodiscard]] std::vector<cv::Mat> get_pixel_cube(int _oct, int _img, int i, int j) const;
 
         static cv::Mat get_gradient(const std::vector<cv::Mat> &pixel_cube);
 
@@ -45,11 +61,12 @@ class sift_handler {
 
         static bool is_pixel_extremum(const std::vector<cv::Mat> &pixel_cube);
 
-        int localize_extrema(int oct, int img, size_t i, size_t j, cv::KeyPoint &) const;
+        int localize_extrema(int _oct, int _img, int i, int j, cv::KeyPoint &) const;
 
-        void get_keypoint_orientations(int oct, int img, cv::KeyPoint &kpt, std::vector<cv::KeyPoint> &keypoints) const;
+        void get_keypoint_orientations(int _oct, int _img, cv::KeyPoint &kpt,
+                                       std::vector<cv::KeyPoint> &_keypoints) const;
 
-        const std::vector<std::vector<cv::Mat>> &images;
+        const std::vector<std::vector<cv::Mat>> &images, &gauss_images;
         int oct;
         int img;
         cv::TLSData<std::vector<cv::KeyPoint>> &tls_data_struct;
@@ -61,35 +78,41 @@ class sift_handler {
 
     void gen_dog_images();
 
+    void dump_keypoints();
+
     void gen_scale_space_extrema();
 
     void clean_keypoints();
+
+    void get_descriptors();
 
    public:
     cv::Mat base, onex;
     int32_t octaves;
     std::string name;
+    std::vector<cv::KeyPoint> keypoints;
+    std::vector<std::vector<double>> descriptors;
 
    private:
-    static constexpr size_t SCALES = 3;
-    static constexpr size_t BORDER = 5;
+    static constexpr int SCALES = 3;
+    static constexpr int BORDER = 5;
     static constexpr double contrast_threshold = 0.04;
-    static constexpr double threshold = (0.5 * contrast_threshold / SCALES * 255);
     static constexpr double SIGMA = 1.6;
     static constexpr double assumed_blur = 0.5;
-    static constexpr size_t IMAGES = SCALES + 3;
+    static constexpr int IMAGES = SCALES + 3;
     static constexpr double EIGEN_VALUE_RATIO = 10.;
-    static constexpr double THRESHOLD_EIGEN_RATIO =
-        ((EIGEN_VALUE_RATIO + 1) * (EIGEN_VALUE_RATIO + 1)) / EIGEN_VALUE_RATIO;
-    static constexpr size_t BINS = 36;
+    static constexpr int BINS = 36;
     static constexpr double PEAK_RATIO = .8;
     static constexpr double SCALE_FACTOR = 1.5;
     static constexpr double RADIUS_FACTOR = 3;
     static constexpr double PI = 3.14159265358979323846;
 
-    std::vector<cv::KeyPoint> keypoints;
+    static constexpr double SCALE_MULTIPLIER = 3;
+    static constexpr int WINDOW_WIDTH = 4;
+    static constexpr double DESCRIPTOR_MAX = 0.2;
 
     std::vector<std::vector<cv::Mat>> images;
+    std::vector<std::vector<cv::Mat>> gauss_images;
 };
 
 }  // namespace sift

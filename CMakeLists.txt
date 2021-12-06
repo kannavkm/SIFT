@@ -11,7 +11,7 @@ find_package(OpenCV REQUIRED)
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 file(GLOB_RECURSE sources "src/*.cpp")
     
-add_executable(smai ${sources})
+add_executable(smai ${sources} )
 
 target_link_libraries(smai PNG::PNG JPEG::JPEG OpenCL::OpenCL ${OpenCV_LIBS})
 target_compile_options(smai PRIVATE -Wall -Wextra -O2)

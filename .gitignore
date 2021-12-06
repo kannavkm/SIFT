@@ -36,6 +36,8 @@ cmake-build-debug
 build
 .idea
 .vscode
+.clangd
+compile_commands.json
 
 third-party
 # Byte-compiled / optimized / DLL files
@@ -176,3 +178,5 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+test/

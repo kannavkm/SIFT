@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    Mat ref = imread(argv[argc - 1], cv::IMREAD_GRAYSCALE);
+    Mat ref = imread(argv[argc - 1]);
     if (!ref.data) {
         printf("No image data \n");
         return -1;
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
         auto ref_descriptors = s_ref.get();
         auto ref_kpt = s_ref.keypoints;
 
-        Mat img = imread(argv[k], cv::IMREAD_GRAYSCALE);
+        Mat img = imread(argv[k]);
         if (!img.data) {
             printf("No image data - %s \n", argv[k]);
             return -1;
@@ -88,11 +88,30 @@ int main(int argc, char **argv) {
         // Use the Homography Matrix to warp the images
         cv::Mat result;
         warpPerspective(ref, result, H, cv::Size(ref.cols + img.cols, ref.rows));
-        cv::Mat half(result, cv::Rect(0, 0, img.cols, img.rows));
-        img.copyTo(half);
 
+        cv::Mat half = result(cv::Rect(0, 0, img.cols, img.rows));
+//        cout << result.channels() << endl;
+        for(int i= 0; i < img.rows; i++){
+            cv::Vec3b* pixel2 = img.ptr<cv::Vec3b>(i);
+            cv::Vec3b* pixel = result.ptr<cv::Vec3b>(i);
+            for(int j = 0; j < img.cols; j++){
+                // std::cout << i << " " << j << std::endl;
+                for (int l = 0; l < result.channels(); l++) {
+                    if(pixel[j][l] == 0) {
+                        pixel[j][l] = pixel2[j][l]; 
+                    }
+                }
+            }
+        }
+        cv::Mat temp;
+        cv::addWeighted(img, 0.7, half, 0.3, 0.0, temp);
+        temp.copyTo(half);
+
+        Mat temp2;
+        cv::cvtColor(result, temp2, cv::COLOR_BGR2GRAY);
+        temp2.convertTo(temp, CV_64F);
         vector<int> sums;
-        cv::reduce(result, sums, 0, REDUCE_SUM, CV_32S);
+        cv::reduce(temp2, sums, 0, REDUCE_SUM, CV_32S);
         int remove_cols = count(sums.begin(), sums.end(), 0);
 
 

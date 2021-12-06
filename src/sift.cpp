@@ -23,7 +23,10 @@ namespace sift {
  */
 sift_handler::sift_handler(std::string _name, cv::Mat &&_base) : name(std::move(_name)) {
     cv::Mat temp, interpolated, blurred_image;
-    _base.convertTo(temp, CV_64F);
+    cv::Mat temp2;
+    cv::cvtColor(_base, temp2, cv::COLOR_BGR2GRAY);
+    temp2.convertTo(temp, CV_64F);
+    temp2.release();
     _base.release();
     onex = temp.clone();
     // compute the number of octaves
@@ -35,6 +38,8 @@ sift_handler::sift_handler(std::string _name, cv::Mat &&_base) : name(std::move(
     cv::resize(temp, interpolated, sz * 2, 0, 0, cv::INTER_LINEAR);
     double diff = std::max(std::sqrt(std::pow(SIGMA, 2) - 4 * std::pow(assumed_blur, 2)), 0.1);
     cv::GaussianBlur(interpolated, blurred_image, cv::Size(0, 0), diff, diff);
+    temp.release();
+    interpolated.release();
     base = blurred_image;
 }
 
@@ -555,6 +560,13 @@ void sift_handler::get_descriptors_parallel::operator()(const cv::Range &range) 
             I = I > 255 ? 255 : I;
         });
         std::vector<std::pair<int, std::vector<double>>> &_descriptors = tls_data_struct.getRef();
+//
+        // double sum = std::accumulate(descriptor_vector.begin(), descriptor_vector.end(), 0.0);
+        // std::for_each(descriptor_vector.begin(), descriptor_vector.end(), [&](auto & I){
+        //     I /= (sum + EPS);
+        //     I = std::sqrt(I);
+        // });
+
         _descriptors.emplace_back(it, std::move(descriptor_vector));
     }
 }

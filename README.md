@@ -29,7 +29,7 @@ cd build
 cmake ..
 make
 ./smai ../res/Lenna.jpg
-./smai ../res/new-england-vermont-colonial-house.jpg
+./smai <Images you want to stitch in order from left to right>
 ```
 
 ## Optional

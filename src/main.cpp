@@ -20,9 +20,22 @@ string getFileName(const string &str) {
 
 
 int main(int argc, char **argv) {
-    if (argc < 3) {
+    if (argc < 2) {
         printf("usage: DisplayImage.out <Image_Path> <Image_Path>\n");
         return -1;
+    }
+
+    if (argc == 2) {
+        Mat image = imread(argv[1]);
+        if (!image.data) {
+            printf("No image data \n");
+            return -1;
+        }
+        // move the image to conserve memory no need to release it now
+        std::string name = getFileName(argv[1]);
+        sift::sift_handler ss(name, std::move(image));
+        // namedWindow("Display Image", WINDOW_AUTOSIZE);
+        ss.exec();
     }
 
     Mat ref = imread(argv[argc - 1]);
@@ -32,8 +45,11 @@ int main(int argc, char **argv) {
     }
     std::string name_ref = getFileName(argv[argc - 1]);
 
+    const Ptr<flann::IndexParams>& indexParams=new flann::KDTreeIndexParams(4);
+    const Ptr<flann::SearchParams>& searchParams=new flann::SearchParams(64);
 
-    FlannBasedMatcher matcher;
+    FlannBasedMatcher matcher(indexParams, searchParams);
+    // FlannBasedMatcher matcher;
 
     for (int k = argc - 2; k >= 1; k--) {
 
@@ -55,7 +71,6 @@ int main(int argc, char **argv) {
         cv::Mat desc = s.get();
         auto kpt = s.keypoints;
 
-
         std::vector<DMatch> matches, good_matches;
         matcher.match(ref_descriptors, desc, matches);
 
@@ -75,6 +90,9 @@ int main(int argc, char **argv) {
             }
         }
         std::vector<Point2f> obj, scene;
+        cerr << "Good Matches found:" << good_matches.size() << endl;
+
+
 
         for (auto &gm : good_matches) {
             //-- Get the keypoints from the good matches
@@ -82,13 +100,21 @@ int main(int argc, char **argv) {
             scene.push_back(kpt[gm.trainIdx].pt);
         }
 
-
         // Find the Homography Matrix
-        Mat H = findHomography(obj, scene, RANSAC);
+        cv::Mat mask;
+        Mat H = findHomography(obj, scene, RANSAC, 3, mask);
         // Use the Homography Matrix to warp the images
+
+        name_ref += '+' + name;
+        Mat img_matches;
+        drawMatches(ref, ref_kpt, img, kpt, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
+                    std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+        imwrite("./Matches" + name_ref + ".png", img_matches);
+
         cv::Mat result;
         warpPerspective(ref, result, H, cv::Size(ref.cols + img.cols, ref.rows));
 
+        cout << mask.size().height << endl;
         cv::Mat half = result(cv::Rect(0, 0, img.cols, img.rows));
 //        cout << result.channels() << endl;
         for(int i= 0; i < img.rows; i++){
@@ -120,14 +146,8 @@ int main(int argc, char **argv) {
 
         cerr << result.size() << "\n";
 
-
-        name_ref += '+' + name;
-        Mat img_matches;
-        drawMatches(ref, ref_kpt, img, kpt, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
-                    std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-        imwrite("./Matches" + name_ref + ".png", img_matches);
         imwrite("./Final-" + name_ref + ".png", result);
-
+        
         ref = std::move(result);
     }
 

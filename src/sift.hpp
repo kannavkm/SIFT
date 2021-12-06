@@ -78,6 +78,8 @@ class sift_handler {
 
     void gen_dog_images();
 
+    void dump_keypoints();
+
     void gen_scale_space_extrema();
 
     void clean_keypoints();

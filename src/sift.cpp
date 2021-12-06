@@ -8,6 +8,8 @@
 #include <iostream>
 #include <numeric>
 #include <utility>
+#include <iostream>
+#include <fstream>
 
 namespace sift {
 
@@ -85,10 +87,11 @@ void sift_handler::exec() {
     TIMEIT(clean_keypoints);
 
     cv::drawKeypoints(temp2, keypoints, out, cv::Scalar_<double>::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    cv::imwrite("Display-" + name + ".png", out);
+    cv::imwrite(name + "_keypoints.png", out);
 
     TIMEIT(get_descriptors);
-    std::cerr <<  "Keypoints: " << keypoints.size() << "\n";
+    std::cerr << "Keypoints Calculated: " << keypoints.size() << "\n";
+    dump_keypoints();
 
     std::cerr << "Completed SIFT for " << name << "\n\n";
 
@@ -106,6 +109,15 @@ cv::Mat sift_handler::get() const {
         }
     }
     return desc;
+}
+
+void sift_handler::dump_keypoints() {
+    std::ofstream fout;
+    fout.open(this->name + ".csv", std::ios::out);
+    for (auto& kpt: this->keypoints) {
+        fout << kpt.pt.x << "," << kpt.pt.y << "," << kpt.size << "," << kpt.angle << std::endl;
+    }
+    fout.close();
 }
 
 cv::Mat sift_handler::getImg(const cv::Mat &mat) {

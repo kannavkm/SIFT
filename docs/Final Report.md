@@ -8,7 +8,7 @@
 - Triansh Sharma (2019101006)
 - Aashwin Vaish  (2019114014)
 
-[Github link](https://github.com/exclowd/smai-team4-sift)
+[Github link](https://github.com/exclowd/smai-team4-sift). The repo contains the SIFT algorithm implemented in C++.
 
 ## Project Objectives
 The main objective of this project is to implement the SIFT algorithm described  in  the paper  by David G. Lowe <a href="#Goals-and-Approach" style="font-size: 11px;vertical-align: super;">[1]</a> from scratch (without any computer-vision dependencies). Distinct invariant features are extracted from images and matched with those from other views of the object or scene. These features are invariant to scaling, rotation, and give robust matching over a range of affine transforms.
@@ -440,9 +440,9 @@ Number of keypoints matched are reduced to 8. These correspond to the largest va
 
 ## Work Distribution
 
-1.  **Kannav:** Gaussian Pyramid, DoG generation, Multithreading, Scale Space Extrema Detection, Subpixel Localization, Orientation Assignment, Keypoint Pruning, Descriptor Generation, Image Stitching & Feature Matching.
-2. **Triansh:** Gaussian Pyramid, DoG generation,  Subpixel Localization, Scale Space Extrema Detection, Orientation Assignment, Keypoint Pruning, Descriptor Generation, Image Stitching & Feature Matching.
-3. **Raj:** Gaussian Pyramid, DoG generation, Scale Space Extrema Detection,  Subpixel Localization, Orientation Assignment.
+1.  **Kannav:** Gaussian Pyramid, DoG generation, Multithreading, Scale Space Extrema Detection, Sub-pixel Localization, Orientation Assignment, Keypoint Pruning, Descriptor Generation, Image Stitching & Feature Matching.
+2. **Triansh:** Gaussian Pyramid, DoG generation,  Sub-pixel Localization, Scale Space Extrema Detection, Orientation Assignment, Keypoint Pruning, Descriptor Generation, Image Stitching & Feature Matching.
+3. **Raj:** Gaussian Pyramid, DoG generation, Scale Space Extrema Detection,  Sub-pixel Localization, Orientation Assignment,Keypoint Pruning, Descriptor Generation.
 4. **Ashwin:** Hessian, Gradient computation, Pixel Cube , Refactoring, Debugging.
 
 
